@@ -1,0 +1,7 @@
+Das ist ein eigenständiger Auftrag, niemand ist zum Rückfragen da: triff sinnvolle Annahmen und halte sie in der README fest.
+
+Im Repo liegt die halbfertige Outfit-App "Ankleide". Lies zuerst BRIEF.md im Wurzelverzeichnis, dort stehen Ziel, alle Anforderungen, die Schnittstellen der vorhandenen Engine (data.js, engine.js, engine2.js, engine3.js), das Design (styles.css), die schon fertigen Helfer und der Speicher (ui1.js) und die Abnahmekriterien.
+
+Deine Aufgabe: Baue die fehlende Oberfläche (body.html, ui2.js bis ui5.js mit den Tabs Heute, Schrank, Scan, Mehr), schreibe build.js, das daraus eine einzige index.html erzeugt, und prüfe alles. Ändere die Engine nur, wo ein Test oder die Abnahme einen Fehler zeigt, und halte test.js und test2.js grün. Behebe die bekannten Schwächen aus Abschnitt 8 des BRIEF.
+
+Arbeitsweise: Zerlege die Arbeit in Schritte und baue zuerst die Tabs Heute und Schrank, prüfe sie im Browser (Playwright/Chromium bei 400 px, falls verfügbar, sonst jsdom), danach Scan und Mehr. Schau dir Screenshots in Hell und Dunkel an und behebe optische Fehler. Committe in kleinen Schritten auf dem Branch ankleide-v1, nie auf main, und pushe am Ende. Schreibe eine README.md mit Bedienung, Annahmen, Grenzen und der Anleitung für GitHub Pages. Abschlussmeldung auf Deutsch: was funktioniert, was getestet wurde, was offen ist.
