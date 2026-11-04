@@ -85,9 +85,10 @@ function openEditor(item, opt) {
     ups.push(colors.upd); ups.push(pat.upd);
 
     /* Dresscode, Wärme, Komfort, Sport, Saison */
+    d.fmin = clampLv(d.fmin); d.fmax = clampLv(d.fmax);
     function lvSel(id, key) {
       var s = h('select', { id: id });
-      AK.LEVELS.forEach(function (lv) { s.append(h('option', { value: String(lv.id) }, lv.id + ' · ' + lv.name)); });
+      LV.forEach(function (L) { s.append(h('option', { value: String(L) }, L + ' · ' + levelName(L))); });
       s.addEventListener('change', function () {
         d[key] = Number(s.value);
         if (d.fmin > d.fmax) { if (key === 'fmin') d.fmax = d.fmin; else d.fmin = d.fmax; }
@@ -190,7 +191,7 @@ registerPanel('closet', {
   build: function (p) {
     clear(p);
     CL.banner = demoBanner();
-    var q = h('input', { type: 'search', id: 'closet-q', placeholder: 'Suchen: Name, Art oder Farbe', 'aria-label': 'Schrank durchsuchen', autocomplete: 'off' });
+    var q = h('input', { type: 'search', id: 'closet-q', placeholder: 'Suchen, z. B. blau Hemd', 'aria-label': 'Schrank durchsuchen', autocomplete: 'off' });
     q.value = V.closet.q;
     q.addEventListener('input', function () { V.closet.q = q.value; drawCloset(); });
     var add = h('button', { class: 'btn accent', type: 'button', id: 'btn-add', 'aria-label': 'Neues Teil anlegen', onclick: function () { openEditor(null); } }, ico('plus'), 'Neu');
@@ -198,7 +199,7 @@ registerPanel('closet', {
     CL.filters = chipGroup(CLOSET_FILTERS, function (k) { return !!V.closet.f[k]; }, function (k) { V.closet.f[k] = !V.closet.f[k]; drawCloset(); }, 'Filter');
     CL.count = h('div', { class: 'countline' });
     CL.grid = h('div', { class: 'closet', id: 'closet-grid' });
-    p.append(CL.banner, h('div', { class: 'sec stack' }, h('div', { class: 'toolbar' }, q, add), CL.slots, CL.filters), h('div', { class: 'sec stack' }, CL.count, CL.grid));
+    p.append(CL.banner, h('div', { class: 'sec stack' }, h('div', { class: 'toolbar' }, h('div', { class: 'searchbox' }, ico('search'), q), add), CL.slots, CL.filters), h('div', { class: 'sec stack' }, CL.count, CL.grid));
     drawCloset();
   },
   refresh: function () { CL.banner.upd(); drawCloset(); }
@@ -218,7 +219,7 @@ function drawCloset() {
   var list = W.filter(function (x) {
     if (V.closet.slot !== 'all' && x.slot !== V.closet.slot) return false;
     for (var i = 0; i < CLOSET_FILTERS.length; i++) if (V.closet.f[CLOSET_FILTERS[i].id] && !CLOSET_FILTERS[i].test(x)) return false;
-    if (qq && norm(x.name + ' ' + typeLabel(x.type) + ' ' + cname(x.color)).indexOf(qq) < 0) return false;
+    if (qq && !matchItem(x, qq)) return false;
     return true;
   }).sort(function (a, b) { return (order[a.slot] - order[b.slot]) || a.name.localeCompare(b.name, 'de'); });
   clear(CL.count); clear(CL.grid);
@@ -232,6 +233,13 @@ function drawCloset() {
     } }, ico('wash'), 'Alles wieder sauber'));
   }
   if (!S.ready) { CL.grid.append(h('div', { class: 'empty' }, 'Dein Schrank wird geladen …')); return; }
+  // Erinnerung an die Sicherung, solange der Schrank nur im Browser liegt
+  var le = S.settings.lastExport;
+  if (S.mode !== 'db' && S.items.length >= 10 && (!le || AK._int.daysSince(le, todayStr()) > 30)) {
+    CL.grid.append(h('div', { class: 'banner', style: 'grid-column:1/-1' },
+      h('span', { class: 'small' }, h('b', null, 'Sichere deinen Schrank. '), le ? 'Der letzte Export ist über einen Monat her.' : 'Er liegt nur in diesem Browser.'),
+      h('div', null, h('button', { class: 'btn small', type: 'button', onclick: function () { V.more.sec = 'settings'; showTab('more'); if (PANELS.more.built) drawMore(); } }, ico('down'), 'Jetzt exportieren'))));
+  }
   if (!W.length) {
     CL.grid.append(h('div', { class: 'card empty stack', style: 'grid-column:1/-1' },
       h('h3', null, 'Noch keine Teile'),
@@ -427,12 +435,12 @@ function drawScan(p) {
       return;
     }
     /* Kombinieren: Stufe innerhalb der Spanne des Teils, Wetter und Rahmen aus „Heute“ */
-    var L = V.scan.level;
-    if (L == null || L < x.fmin || L > x.fmax) L = (V.ctx.level >= x.fmin && V.ctx.level <= x.fmax) ? V.ctx.level : Math.round((x.fmin + x.fmax) / 2);
+    var lo = clampLv(x.fmin), hi = clampLv(x.fmax), L = V.scan.level;
+    if (L == null || L < lo || L > hi) L = (V.ctx.level >= lo && V.ctx.level <= hi) ? V.ctx.level : Math.round((lo + hi) / 2);
     V.scan.level = L;
     var lvOpts = [];
-    for (var i = x.fmin; i <= x.fmax; i++) lvOpts.push({ id: i, label: SHORT[i] });
-    var ctx = engineCtx(V.ctx, { level: L, must: [{ kind: 'item', item: x }], activity: isSportAct(V.ctx.activity) && L > 1 ? 'alltag' : V.ctx.activity });
+    for (var i = lo; i <= hi; i++) lvOpts.push({ id: i, label: AK.LEVEL_SHORT[i] });
+    var ctx = engineCtx(V.ctx, { level: L, must: [{ kind: 'item', item: x }] });
     var r = AK.suggest(W, ctx, { n: 3 });
     out.append(h('div', { class: 'res-head' }, h('h2', { class: 'mono' }, 'Mit deinem Schrank'), h('span', { class: 'mono' }, fmtN(r.total) + ' Kombinationen')),
       h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Dresscode'),

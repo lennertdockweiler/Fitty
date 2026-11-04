@@ -3,8 +3,8 @@
  * Smoke-Test der Oberfläche mit Playwright und Chromium.
  *   node build.js && node tests/ui-smoke.js            Screenshots landen in shots/
  *   SHOTS=0 node tests/ui-smoke.js                       ohne Screenshots
- * Prüft bei 400 px und 1000 px, hell und dunkel: Start, Tabs, Vorschläge mit Beispielschrank,
- * Abnahme-Szenarien, Wunschteile, „Das trage ich“, Teil anlegen/bearbeiten/löschen, Scan mit Foto,
+ * Prüft bei 400 px und 1000 px, hell und dunkel: Start, Tabs, Vorschläge mit Zeichnung, Live-Wetter (feste Testantwort),
+ * Dresscode und Aktivitäten, Wunschteile mit Suche, Bewerten, „Das trage ich“, Teil anlegen/bearbeiten/löschen, Scan mit Foto,
  * Einkaufs-Check, Kapsel, Wochenplaner, Tagebuch, Export/Import, kein horizontales Scrollen,
  * keine Konsolenfehler. Dazu die Erkennung per Claude und der Konto-Speicher mit Attrappen von window.claude.
  */
@@ -42,6 +42,7 @@ async function step(label, fn) {
 async function newPage(browser, url, opt) {
   var ctx = await browser.newContext({ viewport: { width: opt.w, height: opt.h }, colorScheme: opt.scheme, deviceScaleFactor: 1 });
   if (opt.init) await ctx.addInitScript(opt.init);
+  if (opt.net) await opt.net(ctx);
   var page = await ctx.newPage();
   page.setDefaultTimeout(5000);
   page.errors = [];
@@ -80,14 +81,34 @@ function pngGreenSquare(page) {
   }).then(function (b64) { return { name: 'pulli.png', mimeType: 'image/png', buffer: Buffer.from(b64, 'base64') }; });
 }
 
+var WX_FIXTURE = { daily: { time: ['2026-11-04', '2026-11-05'], temperature_2m_max: [7.4, 11.2], temperature_2m_min: [3.9, 4.2], weather_code: [61, 2],
+  precipitation_probability_max: [80, 10], snowfall_sum: [0, 0], wind_speed_10m_max: [31, 6] } };
+var GEO_FIXTURE = { results: [{ name: 'Freiburg im Breisgau', latitude: 47.995, longitude: 7.85, admin1: 'Baden-Württemberg', country: 'Deutschland' }] };
+async function stubNet(ctx) {
+  await ctx.route('https://api.open-meteo.com/**', function (r) { return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(WX_FIXTURE) }); });
+  await ctx.route('https://geocoding-api.open-meteo.com/**', function (r) { return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(GEO_FIXTURE) }); });
+}
+
 async function fullFlow(browser, url, opt) {
   var tag = opt.w + '-' + opt.scheme;
+  opt.net = stubNet;
   var page = await newPage(browser, url, opt);
-  await step(tag + ': App startet, drei Vorschläge mit Beispielschrank', async function () {
+  await step(tag + ': App startet, drei Vorschläge mit Zeichnung, Live-Wetter geladen', async function () {
     await page.waitForSelector('#today-results .outfit', { timeout: 8000 });
     ok((await page.$$('#today-results .outfit')).length === 3, 'drei Outfit-Karten erwartet');
+    ok((await page.$$('#today-results .outfit .o-fig svg')).length === 3, 'jede Karte hat eine Zeichnung');
+    ok((await page.$$('#today-results .piece .art-wrap svg')).length >= 9, 'Teile mit Zeichnung');
     ok(/Auf diesem Gerät/.test(await page.textContent('#sync')), 'Statusanzeige');
     ok(await page.isVisible('#p-today .banner'), 'Banner Beispielschrank');
+    await page.waitForFunction(function () { return /Konstanz/.test(document.querySelector('.wxline').textContent) && /Heute 7/.test(document.querySelector('.wxline').textContent); }, null, { timeout: 4000 });
+    ok((await page.textContent('#today-temp-out')).indexOf('7') === 0, 'Temperatur aus dem Live-Wetter');
+    ok((await page.getAttribute('.cond[data-v="regen"]', 'aria-pressed')) === 'true', 'Regen aus dem Live-Wetter');
+    ok((await page.getAttribute('#today-wind', 'aria-pressed')) === 'true', 'Wind aus dem Live-Wetter');
+    ok((await page.$$('.tape button')).length === 5, 'fünf Dresscode-Stufen');
+    var labels = await page.$$eval('.tape .l', function (els) { return els.map(function (e) { return e.textContent; }); });
+    ok(labels.join('|') === 'Entspannt|Casual|Smart Casual|Business Casual|Business Formal', 'Stufen: ' + labels.join('|'));
+    var acts = await page.$$eval('#today-activity option', function (els) { return els.map(function (e) { return e.value; }); });
+    ok(acts.indexOf('tennis') < 0 && acts.indexOf('joggen') < 0 && acts.indexOf('hochzeit') >= 0, 'Aktivitäten ohne Sport');
     await noHScroll(page, 'Heute');
   });
   await shot(page, tag + '-heute');
@@ -97,8 +118,8 @@ async function fullFlow(browser, url, opt) {
       await page.click('#t-' + id);
       ok(await page.isVisible('#p-' + id), 'Panel ' + id + ' sichtbar');
       ok((await page.getAttribute('#t-' + id, 'aria-selected')) === 'true', 'aria-selected ' + id);
-      var hidden = await page.$$eval('main .panel', function (ps) { return ps.filter(function (p) { return !p.hidden; }).length; });
-      ok(hidden === 1, 'genau ein Panel sichtbar');
+      var vis = await page.$$eval('main .panel', function (ps) { return ps.filter(function (p) { return !p.hidden; }).length; });
+      ok(vis === 1, 'genau ein Panel sichtbar');
       await noHScroll(page, id);
     }
     await page.focus('#t-today'); await page.keyboard.press('ArrowRight');
@@ -106,51 +127,72 @@ async function fullFlow(browser, url, opt) {
     await page.click('#t-today');
   });
 
-  await step(tag + ': Black Tie bei 5 °C mit Regen', async function () {
-    await page.click('.tape button:nth-child(7)');
+  await step(tag + ': Wetter von Hand: Morgen, Plus/Minus, Wetterlage, Wind', async function () {
+    await page.click('.day-seg button:has-text("Morgen")');
+    await page.waitForFunction(function () { return document.getElementById('today-temp-out').textContent.indexOf('11') === 0; }, null, { timeout: 3000 });
+    ok((await page.getAttribute('.cond[data-v="wolken"]', 'aria-pressed')) === 'true', 'morgen bewölkt');
+    await page.click('.day-seg button:has-text("Heute")');
+    await page.click('button[aria-label="Ein Grad wärmer"]');
+    await page.click('button[aria-label="Ein Grad wärmer"]');
+    ok((await page.textContent('#today-temp-out')).indexOf('9') === 0, 'zwei Grad wärmer');
+    ok(/eigene Angabe/.test(await page.textContent('.wxline')), 'eigene Angabe markiert');
+    await page.click('.cond[data-v="sonne"]');
+    await page.click('#today-wind');
+    ok((await page.getAttribute('.cond[data-v="sonne"]', 'aria-pressed')) === 'true' && (await page.getAttribute('.cond[data-v="regen"]', 'aria-pressed')) === 'false', 'eine Wetterlage');
+    await page.click('#wx-reload');
+    await page.waitForFunction(function () { return document.getElementById('today-temp-out').textContent.indexOf('7') === 0; }, null, { timeout: 3000 });
+  });
+
+  await step(tag + ': Business Formal bei 5 °C mit Regen', async function () {
+    await page.click('.tape button[data-l="5"]');
     await page.fill('#today-temp', '5');
-    await page.click('#p-today [aria-label="Wetterlage"] [data-v="rain"]');
+    await page.click('.cond[data-v="regen"]');
     await waitCards(page, function () {
-      var c = document.querySelector('#today-results .outfit');
-      return c && /Smoking/.test(c.innerText) && /Fliege/.test(c.innerText) && /wetterfest/.test(c.innerText) && document.getElementById('today-temp-out').textContent.indexOf('5') === 0;
-    }, 'Smoking, Fliege, Regenhinweis');
-    var t = await cardsText(page);
-    ok(t.every(function (x) { return !/Gürtel/.test(x); }), 'kein Gürtel zum Smoking');
+      var cs = document.querySelectorAll('#today-results .outfit');
+      return cs.length === 3 && Array.prototype.every.call(cs, function (c) { return /Sakko/.test(c.innerText) && /Krawatte/.test(c.innerText) && /wetterfest/.test(c.innerText); }) &&
+        document.getElementById('today-temp-out').textContent.indexOf('5') === 0;
+    }, 'Sakko, Krawatte, Regenhinweis');
   });
 
-  await step(tag + ': Joggen bei 28 °C setzt Stufe Sportlich', async function () {
-    await page.selectOption('#today-activity', 'joggen');
-    await page.fill('#today-temp', '28');
-    await page.click('#p-today [aria-label="Wetterlage"] [data-v="rain"]');
-    ok((await page.getAttribute('.tape button:nth-child(1)', 'aria-pressed')) === 'true', 'Stufe 0 gewählt');
+  await step(tag + ': Business Casual ohne Krawatte, mit Hemd', async function () {
+    await page.click('.tape button[data-l="4"]');
     await waitCards(page, function () {
-      var c = document.querySelector('#today-results .outfit');
-      return c && /Laufshirt/.test(c.innerText) && /Laufhose/.test(c.innerText) && /Laufschuhe/.test(c.innerText);
-    }, 'Laufshirt, Laufhose, Laufschuhe');
+      var cs = document.querySelectorAll('#today-results .outfit');
+      return cs.length && document.querySelector('.tape button[data-l="4"]').getAttribute('aria-pressed') === 'true' &&
+        Array.prototype.every.call(cs, function (c) { return !/Krawatte/.test(c.innerText) && /Hemd/.test(c.innerText); });
+    }, 'keine Krawatte bei Business Casual');
   });
 
-  await step(tag + ': Tennis mit Sakko als Wunschteil warnt', async function () {
-    await page.selectOption('#today-activity', 'tennis');
-    await page.fill('#today-temp', '18');
-    await page.click('#p-today button:has-text("Wunschteil wählen")');
+  await step(tag + ': Aktivität „Hochzeit“ hebt Casual auf Business Casual', async function () {
+    await page.click('.tape button[data-l="2"]');
+    await page.selectOption('#today-activity', 'hochzeit');
+    ok((await page.getAttribute('.tape button[data-l="4"]', 'aria-pressed')) === 'true', 'Stufe 4 gewählt');
+    ok(/Üblich: Business Casual bis Business Formal/.test(await page.textContent('#p-today')), 'Hinweis auf üblichen Dresscode');
+    await page.selectOption('#today-activity', 'alltag');
+  });
+
+  await step(tag + ': Wunschteil über die Suche, Ersatz im selben Bereich', async function () {
+    await page.click('#btn-must');
+    await page.fill('#must-q', 'sakko navy');
+    var n = (await page.$$('.sheet .pick')).length;
+    ok(n === 1, 'Suche findet genau das Navy Sakko, gefunden: ' + n);
     await page.click('.sheet .pick:has-text("Navy Sakko")');
-    ok((await page.getAttribute('.sheet .pick:has-text("Navy Sakko")', 'aria-pressed')) === 'true', 'Auswahl markiert');
+    await page.fill('#must-q', 'blau');
+    ok((await page.$$('.sheet .pick')).length >= 5, 'Farbsuche „blau“ findet Navy, Indigo, Hellblau …');
     await page.click('.sheet .foot .btn');
-    ok(!(await page.$('.sheet')), 'Sheet geschlossen');
     ok(/Navy Sakko/.test(await page.textContent('#p-today .mustchip')), 'Wunsch-Chip');
     await waitCards(page, function () {
       var cs = document.querySelectorAll('#today-results .outfit');
-      return cs.length && Array.prototype.every.call(cs, function (c) { return /Navy Sakko ist für Tennis unpraktisch/.test(c.innerText) && /Wunsch/.test(c.innerText); });
-    }, 'Warnung Sakko beim Tennis');
+      return cs.length && Array.prototype.every.call(cs, function (c) { return /Navy Sakko/.test(c.innerText) && /wunsch/i.test(c.innerText); });
+    }, 'Navy Sakko als Wunsch in allen Vorschlägen');
+    await page.click('#p-today .mustchip button');
   });
 
   await step(tag + ': Date mit Jogginghose (Art als Wunsch) warnt', async function () {
-    await page.selectOption('#today-activity', 'alltag');
-    await page.click('.tape button:nth-child(4)');
-    await page.click('#p-today .mustchip button');
-    ok(!(await page.$('#p-today .mustchip')), 'Wunsch entfernt');
-    await page.click('#p-today button:has-text("Wunschteil wählen")');
+    await page.click('.tape button[data-l="3"]');
+    await page.click('#btn-must');
     await page.click('.sheet .seg button:has-text("Art")');
+    await page.fill('#must-q', 'jogging');
     await page.click('.sheet [data-k="jogger"]');
     await page.click('.sheet button:has-text("Als Wunsch hinzufügen")');
     await waitCards(page, function () {
@@ -160,9 +202,12 @@ async function fullFlow(browser, url, opt) {
     await page.click('#p-today .mustchip button');
   });
 
-  await step(tag + ': Nochmal würfeln bringt andere Vorschläge', async function () {
-    await page.click('.tape button:nth-child(3)');
-    await page.fill('#today-temp', '12');
+  await step(tag + ': Unterwegs & Stil aufklappen, Nochmal würfeln', async function () {
+    await page.click('.tape button[data-l="2"]');
+    await page.click('#today-more > summary');
+    await page.click('#today-more .seg button:has-text("Fahrrad")');
+    ok(/Fahrrad/.test(await page.textContent('#today-more > summary')), 'Zusammenfassung zeigt Fahrrad');
+    await page.click('#today-more > summary');
     await page.waitForTimeout(250);
     var before = await cardsText(page);
     await page.click('#btn-reroll');
@@ -171,28 +216,39 @@ async function fullFlow(browser, url, opt) {
     ok(after.every(function (x) { return before.indexOf(x) < 0; }), 'alle drei neu');
   });
 
-  await step(tag + ': „Das trage ich“ erhöht wears und legt Tagebuch an', async function () {
-    var names = await page.$$eval('#today-results .outfit:first-of-type .piece .pn', function (els) { return els.map(function (e) { return e.firstChild.textContent; }); });
+  await step(tag + ': Bewerten, „Das trage ich“, Merken', async function () {
     ok(!(await store(page)), 'vorher nichts gespeichert');
-    await page.click('#today-results .outfit:first-of-type .o-actions .btn:first-child');
+    await page.click('#today-results .outfit:nth-of-type(1) button[aria-label="Gefällt mir"]');
+    await page.click('#today-results .outfit:nth-of-type(2) button[aria-label="Nicht mein Stil"]');
     var s = await store(page);
-    ok(s && s.items.length === 44, 'Beispielschrank übernommen');
+    ok(s && s.feedback.length === 2 && s.feedback.some(function (f) { return f.v === 1; }) && s.feedback.some(function (f) { return f.v === -1; }), 'zwei Bewertungen gespeichert');
+    ok(s.items.length === 0, 'Bewerten übernimmt den Beispielschrank nicht');
+    ok((await page.getAttribute('#today-results .outfit:nth-of-type(1) button[aria-label="Gefällt mir"]', 'aria-pressed')) === 'true', 'Daumen markiert');
+    var names = await page.$$eval('#today-results .outfit:first-of-type .piece .pn', function (els) { return els.map(function (e) { return e.firstChild.textContent; }); });
+    await page.click('#today-results .outfit:first-of-type .o-actions > .btn:nth-child(1)');
+    s = await store(page);
+    ok(s && s.items.length === 46, 'Beispielschrank übernommen');
     names.forEach(function (n) {
       var it = s.items.filter(function (x) { return x.name === n; })[0];
       ok(it && it.wears >= 1 && it.last, 'wears erhöht für ' + n);
     });
     ok(s.diary.length === 1 && s.diary[0].ids.length >= names.length, 'Tagebucheintrag');
-    ok(/Eingetragen/.test(await page.textContent('#today-results .outfit:first-of-type .o-actions .btn:first-child')), 'Knopf zeigt Eingetragen');
+    ok(/Eingetragen/.test(await page.textContent('#today-results .outfit:first-of-type .o-actions > .btn:nth-child(1)')), 'Knopf zeigt Eingetragen');
     ok(!(await page.isVisible('#p-today .banner')), 'Banner weg');
-    await page.click('#today-results .outfit:nth-of-type(2) .o-actions .btn:last-child');
+    await page.click('#today-results .outfit:nth-of-type(3) .o-actions > .btn:nth-child(2)');
     s = await store(page);
     ok(s.settings.saved && s.settings.saved.length === 1, 'Gemerkt gespeichert');
+    await page.click('#today-results .outfit:first-of-type .o-why summary');
+    ok(/Farben:/.test(await page.textContent('#today-results .outfit:first-of-type .o-why')), 'Begründung aufklappbar');
   });
 
   await step(tag + ': Teil anlegen, bearbeiten, suchen, löschen', async function () {
     await page.click('#t-closet');
-    ok((await page.$$('#closet-grid .gcard')).length === 44, '44 Teile im Raster');
+    ok((await page.$$('#closet-grid .gcard')).length === 46, '46 Teile im Raster');
+    ok((await page.$$('#closet-grid .art-wrap svg')).length === 46, 'jedes Teil gezeichnet');
     await page.click('#btn-add');
+    var lv = await page.$$eval('#ed-fmin option', function (els) { return els.map(function (e) { return e.value; }).join(''); });
+    ok(lv === '12345', 'Dresscode-Auswahl 1 bis 5');
     await page.fill('#ed-name', 'Grüner Pullover');
     await page.selectOption('#ed-type', 'pullover');
     await page.click('.sheet .sw[aria-label="Grün"]');
@@ -209,14 +265,17 @@ async function fullFlow(browser, url, opt) {
     it = s.items.filter(function (x) { return x.id === it.id; })[0];
     ok(it.name === 'Grüner Lieblingspulli' && it.fav === true, 'Änderung gespeichert');
     await page.fill('#closet-q', 'lieblingsp');
-    ok((await page.$$('#closet-grid .gcard')).length === 1, 'Suche findet ein Teil');
+    ok((await page.$$('#closet-grid .gcard')).length === 1, 'Suche nach Name');
+    await page.fill('#closet-q', 'blau hemd');
+    var hits = await page.$$eval('#closet-grid .gcard', function (els) { return els.map(function (e) { return e.getAttribute('aria-label'); }); });
+    ok(hits.length >= 2 && hits.every(function (x) { return /Hemd/.test(x); }), 'Suche „blau hemd“: ' + hits.join(' / '));
     await page.fill('#closet-q', '');
     await page.click('#closet-grid .gcard[aria-label^="Grüner Lieblingspulli"]');
     if (SHOTS) await page.screenshot({ path: path.join(SHOT_DIR, tag + '-sheet.png') });
     await page.click('.sheet button:has-text("Teil löschen")');
     await page.click('.sheet button:has-text("Ja, löschen")');
     s = await store(page);
-    ok(s.items.length === 44 && !s.items.some(function (x) { return x.id === it.id; }), 'gelöscht');
+    ok(s.items.length === 46 && !s.items.some(function (x) { return x.id === it.id; }), 'gelöscht');
     await noHScroll(page, 'Schrank');
   });
 
@@ -230,23 +289,26 @@ async function fullFlow(browser, url, opt) {
     await page.click('#scan-shop');
     var v = await page.textContent('#scan-out .verdict');
     ok(v && v.length > 10, 'Urteil vorhanden');
+    var lvls = await page.$$eval('#scan-out .bars .br > span:first-child', function (els) { return els.map(function (e) { return e.textContent; }); });
+    ok(lvls.indexOf('Sportlich') < 0 && lvls.indexOf('Black Tie') < 0, 'nur angebotene Stufen: ' + lvls.join(', '));
     await shot(page, tag + '-scan');
     await page.click('#scan-combine');
-    ok((await page.$$('#scan-out .outfit')).length > 0, 'Kombinationen');
+    ok((await page.$$('#scan-out .outfit .o-fig svg')).length > 0, 'Kombinationen mit Zeichnung');
     ok(/Wunsch/.test(await page.textContent('#scan-out .outfit')), 'Scan-Teil markiert');
     await page.click('#scan-save');
     var s = await store(page);
-    ok(s.items.length === 45 && s.items.some(function (x) { return x.type === 'pullover' && x.color === 'gruen' && /^data:image\/jpeg/.test(x.photo || ''); }), 'mit Foto gespeichert');
+    ok(s.items.length === 47 && s.items.some(function (x) { return x.type === 'pullover' && x.color === 'gruen' && /^data:image\/jpeg/.test(x.photo || ''); }), 'mit Foto gespeichert');
     await noHScroll(page, 'Scan');
   });
 
   await step(tag + ': Mehr: Lücken, Staples, Kapsel, Woche, Tagebuch', async function () {
     await page.click('#t-more');
-    ok((await page.$$('#more-body .matrix .c')).length === 28, 'Matrix 7 × 4');
+    ok((await page.$$('#more-body .matrix .c')).length === 20, 'Matrix 5 × 4');
     await shot(page, tag + '-mehr-luecken');
     await page.click('#p-more .subnav [data-v="staples"]');
     ok((await page.$$('#more-body .prow.ranked')).length >= 5, 'Staples-Rangliste');
     await page.click('#p-more .subnav [data-v="pack"]');
+    ok((await page.$$('#more-body .chips button')).length >= 5, 'Stufen-Chips');
     await page.fill('#cap-days', '10');
     await page.click('#p-more .seg button:has-text("Koffer")');
     await page.fill('#cap-temp', '24');
@@ -267,16 +329,22 @@ async function fullFlow(browser, url, opt) {
     await noHScroll(page, 'Mehr');
   });
 
-  await step(tag + ': Export und Import', async function () {
+  await step(tag + ': Einstellungen: Wetter-Ort, Vorlieben, Export und Import', async function () {
     await page.click('#p-more .subnav [data-v="settings"]');
+    ok(/1\s*gefällt mir/.test(await page.textContent('#more-body')), 'Vorlieben gezählt');
+    await page.fill('#set-place', 'Freiburg');
+    await page.click('#set-place-go');
+    await page.click('#set-place-hits .pick:has-text("Freiburg")');
+    var s = await store(page);
+    ok(s.settings.wxPlace && s.settings.wxPlace.name === 'Freiburg im Breisgau', 'Ort gespeichert');
     await page.click('#set-export-go');
     var json = JSON.parse(await page.inputValue('#set-export'));
-    ok(json.items.length === 45 && json.diary.length === 1, 'Export vollständig');
+    ok(json.items.length === 47 && json.diary.length === 1 && json.feedback.length === 2, 'Export vollständig');
     var extra = { items: [{ id: 'imp1', name: 'Importierte Chino', type: 'chino', color: 'oliv' }, { id: 'bad', type: 'unbekannt' }] };
     await page.fill('#set-import', JSON.stringify(extra));
     await page.click('#set-import-go');
-    var s = await store(page);
-    ok(s.items.length === 46 && s.items.some(function (x) { return x.id === 'imp1' && x.slot === 'bottom'; }), 'Import ergänzt');
+    s = await store(page);
+    ok(s.items.length === 48 && s.items.some(function (x) { return x.id === 'imp1' && x.slot === 'bottom'; }), 'Import ergänzt');
     await page.fill('#set-import', '{kaputt');
     await page.click('#set-import-go');
     ok(/kein gültiges JSON/.test(await page.textContent('#toast')), 'Fehlermeldung bei kaputtem JSON');
@@ -287,7 +355,7 @@ async function fullFlow(browser, url, opt) {
     await page.click('#more-body button:has-text("Alle Daten löschen")');
     await page.click('#more-body button:has-text("Ja, alles löschen")');
     var s = await store(page);
-    ok(s.items.length === 0 && s.diary.length === 0, 'gelöscht');
+    ok(s.items.length === 0 && s.diary.length === 0 && s.feedback.length === 0, 'gelöscht');
     await page.click('#t-today');
     ok(await page.isVisible('#p-today .banner'), 'Beispielschrank wieder sichtbar');
     await page.click('#p-today .banner button:has-text("Leer starten")');

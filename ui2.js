@@ -3,7 +3,9 @@ var TABS = [
   { id: 'today', name: 'Heute' }, { id: 'closet', name: 'Schrank' },
   { id: 'scan', name: 'Scan' }, { id: 'more', name: 'Mehr' }
 ];
-var SHORT = ['Sport', 'Relaxt', 'Casual', 'Smart', 'Business', 'Cocktail', 'Black Tie'];
+var SHORT = ['Sport', 'Entspannt', 'Casual', 'Smart Casual', 'Business Casual', 'Business Formal', 'Black Tie'];
+var LV = AK.UI_LEVELS;
+function clampLv(L) { return Math.max(LV[0], Math.min(LV[LV.length - 1], L)); }
 var MAIN_SLOTS = ['top', 'mid', 'outer', 'bottom', 'shoes'];
 var PANELS = {};
 V.dirty = {};
@@ -20,6 +22,16 @@ ICONS.cal = '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M
 ICONS.wash = '<path d="M5 4h14v16H5zM5 8h14"/><circle cx="12" cy="14" r="3.2"/>';
 ICONS.arrow = '<path d="M5 12h14m-5-5 5 5-5 5"/>';
 ICONS.edit = '<path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"/>';
+ICONS.up1 = '<path d="M7 11v9H4v-9zM7 11l4-7c1.5 0 2.5 1 2.2 2.6L12.6 10H18a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7"/>';
+ICONS.down1 = '<path d="M7 13V4H4v9zM7 13l4 7c1.5 0 2.5-1 2.2-2.6L12.6 14H18a2 2 0 0 0 2-2.3l-1.2-6A2 2 0 0 0 16.8 4H7"/>';
+ICONS.cloud = '<path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/>';
+ICONS.rain = '<path d="M7 14h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 5.5 4.3 4.3 0 0 0 7 14zM8 17l-1 3M12 17l-1 3M16 17l-1 3"/>';
+ICONS.snow = '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5 12 7l2.5-2.5M9.5 19.5 12 17l2.5 2.5"/>';
+ICONS.wind = '<path d="M3 9h11a3 3 0 1 0-3-3M3 15h15a3 3 0 1 1-3 3M3 12h8"/>';
+ICONS.search = '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>';
+ICONS.pin = '<path d="M12 21s-6.5-6.2-6.5-11A6.5 6.5 0 0 1 18.5 10c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>';
+ICONS.refresh = '<path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4"/>';
+ICONS.minus = '<path d="M5 12h14"/>';
 
 function registerPanel(id, o) { o.built = false; PANELS[id] = o; }
 function levelName(L) { return (AK.LEVELS[L] || {}).name || ''; }
@@ -158,9 +170,11 @@ function demoBanner(where) {
 /* ---------- Bausteine ---------- */
 function thumbEl(it, o) {
   o = o || {};
-  var cls = 'thumb' + (it.pattern && it.pattern !== 'uni' ? ' ' + it.pattern : '') + (lightColor(it.color) ? ' light' : '') + (o.size ? ' ' + o.size : '');
+  var art = !it.photo && typeof ART !== 'undefined' && !!AK.TYPES[it.type];
+  var cls = 'thumb' + (art ? ' art-tile' : (it.pattern && it.pattern !== 'uni' ? ' ' + it.pattern : '') + (lightColor(it.color) ? ' light' : '')) + (o.size ? ' ' + o.size : '');
   var t = h('span', { class: cls, style: '--c:' + hex(it.color) });
   if (it.photo) t.append(h('img', { src: it.photo, alt: '', loading: 'lazy' }));
+  else if (art) { var w = h('span', { class: 'art-wrap', 'aria-hidden': 'true' }); w.innerHTML = ART.item(it); t.append(w); }
   if (o.badges) {
     var b = h('span', { class: 'badges' });
     if (it.fav) b.append(h('span', { class: 'badge star', title: 'Lieblingsteil' }, '★'));
@@ -180,10 +194,37 @@ function prow(it, end, sub) {
 function itemsOf(o) { return MAIN_SLOTS.map(function (k) { return o[k]; }).filter(Boolean); }
 function spineColors(o) { return ['outer', 'mid', 'top', 'bottom', 'shoes'].map(function (k) { return o[k]; }).filter(Boolean).map(function (x) { return hex(x.color); }); }
 function outfitTitle(o) {
-  var lead = o.outer || o.mid || o.top;
+  var lead = o.mid || o.top;
   return lead && o.bottom ? typeLabel(lead.type) + ' & ' + typeLabel(o.bottom.type) : 'Outfit';
 }
 function fullKey(o) { return MAIN_SLOTS.map(function (k) { return o[k] ? o[k].id : '-'; }).join('|'); }
+
+/* ---------- Suche über Teile: alle Wörter müssen passen (Name, Art, Bereich, Farbe, Muster, Merkmale, Synonyme) ---------- */
+var TYPE_SYN = { tshirt: 'shirt tee oberteil', langarm: 'longsleeve shirt', polo: 'poloshirt', hemd: 'shirt bluse business', sporttop: 'sport shirt',
+  pullover: 'pulli strick sweater', feinstrick: 'pulli strick rollkragen', strickjacke: 'cardigan strick', sweat: 'sweater pulli', hoodie: 'kapuze pulli',
+  fleece: 'pulli', sakko: 'blazer jackett anzug', smoking: 'anzug', weste: 'gilet anzug', jeansjacke: 'jacke', lederjacke: 'jacke', bomber: 'jacke',
+  uebergang: 'jacke', regenjacke: 'jacke regen', softshell: 'jacke', trench: 'mantel', wintermantel: 'mantel', parka: 'jacke mantel winter', daune: 'jacke winter puffer',
+  trainingsjacke: 'jacke', jeans: 'hose denim', chino: 'hose', stoff: 'hose anzughose', anzughose: 'hose anzug', jogger: 'hose jogginghose', shorts: 'kurze hose',
+  sporthose: 'hose', cargo: 'hose', sneaker: 'schuhe turnschuh', laufschuh: 'schuhe turnschuh', boots: 'schuhe stiefel', chelsea: 'schuhe stiefel boots',
+  loafer: 'schuhe slipper', derby: 'schuhe lederschuh', oxford: 'schuhe lederschuh', sandalen: 'schuhe', winterstiefel: 'schuhe stiefel',
+  guertel: 'accessoire', uhr: 'accessoire', schal: 'accessoire', muetze: 'accessoire beanie', handschuhe: 'accessoire', krawatte: 'accessoire schlips',
+  fliege: 'accessoire', einstecktuch: 'accessoire', cap: 'accessoire kappe', sonnenbrille: 'accessoire brille' };
+var COLOR_SYN = { navy: 'blau dunkelblau', indigo: 'blau dunkelblau', denim: 'blau hellblau', blau: 'blau', hellblau: 'blau', anthrazit: 'grau dunkelgrau',
+  grau: 'grau', weiss: 'hell', beige: 'hell creme', sand: 'beige', camel: 'braun beige', braun: 'braun', oliv: 'gruen khaki', gruen: 'gruen',
+  bordeaux: 'rot weinrot', rot: 'rot', rosa: 'pink', schwarz: 'dunkel', lila: 'violett', gelb: 'gelb', orange: 'orange' };
+function normQ(s) { return String(s || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/-/g, ''); }
+function hay(it) {
+  var p = (AK.PATTERNS.filter(function (x) { return x.id === it.pattern; })[0] || {}).name || '';
+  return normQ([it.name, typeLabel(it.type), it.type, slotName(it.slot), cname(it.color), it.color, COLOR_SYN[it.color] || '', p,
+    TYPE_SYN[it.type] || '', it.fav ? 'liebling lieblingsteil favorit' : '', it.basic ? 'basic' : '', it.never ? 'nie' : '',
+    it.avail === false ? 'waesche wäsche' : ''].join(' '));
+}
+function matchItem(it, q) {
+  var toks = normQ(q).split(/\s+/).filter(Boolean);
+  if (!toks.length) return true;
+  var hs = hay(it);
+  return toks.every(function (t) { return hs.indexOf(t) >= 0; });
+}
 
 /* Segment-Schalter: opts = [{id, label}], get() liefert den aktiven Wert */
 function seg(opts, get, set, label) {
@@ -250,6 +291,7 @@ function outfitCard(o, opt) {
   spineColors(it).forEach(function (c) { spine.append(h('i', { style: '--c:' + c })); });
   var sub = ['Nr. ' + pad((opt.i || 0) + 1)];
   if (opt.ctx) sub.push(levelName(opt.ctx.level));
+  if (it.outer) sub.push('mit ' + typeLabel(it.outer.type));
   var head = h('div', { class: 'o-head' },
     h('div', null, h('div', { class: 'mono o-sub' }, sub.join(' · ')), h('h3', { class: 'o-title' }, outfitTitle(it))),
     h('div', { class: 'fit', title: 'Wie gut das Outfit zu deinen Angaben passt (5 bis 99)' },
@@ -257,22 +299,33 @@ function outfitCard(o, opt) {
       h('div', { class: 'bar', 'aria-hidden': 'true' }, h('i', { style: 'width:' + o.score + '%' })),
       h('span', { class: 'mono' }, 'Stimmigkeit')));
   var pieces = h('div', { class: 'pieces' });
-  ['top', 'mid', 'outer', 'bottom', 'shoes'].forEach(function (k) {
+  ['outer', 'mid', 'top', 'bottom', 'shoes'].forEach(function (k) {
     var x = it[k]; if (!x) return;
-    pieces.append(h('div', { class: 'piece' }, thumbEl(x),
+    pieces.append(h('div', { class: 'piece' }, thumbEl(x, { size: 'md' }),
       h('div', null, h('div', { class: 'pn' }, x.name, opt.wished && opt.wished(x) ? h('span', { class: 'tag' }, 'Wunsch') : null),
-        h('span', { class: 'mono pmeta' }, slotName(k) + ' · ' + cname(x.color)))));
+        h('span', { class: 'mono pmeta' }, slotName(k)))));
   });
+  var fig = null;
+  if (typeof ART !== 'undefined') {
+    fig = h('div', { class: 'o-fig', role: 'img', 'aria-label': 'Zeichnung des Outfits' });
+    fig.innerHTML = ART.outfit(it, '');
+    fig.firstChild.setAttribute('aria-hidden', 'true');
+  }
   var acc = null;
   if (it.acc && it.acc.length) {
     acc = h('div', { class: 'acc', 'aria-label': 'Accessoires' });
     it.acc.forEach(function (a) { acc.append(h('span', null, h('i', { style: '--c:' + hex(a.color) }), a.name)); });
   }
+  var warns = null;
+  if (o.warns.length) {
+    warns = h('ul', { class: 'notes' });
+    o.warns.forEach(function (w) { warns.append(h('li', { class: 'w' }, h('span', { class: 'vh' }, 'Achtung: '), w)); });
+  }
   var notes = h('ul', { class: 'notes' });
-  o.warns.forEach(function (w) { notes.append(h('li', { class: 'w' }, h('span', { class: 'vh' }, 'Achtung: '), w)); });
   o.notes.forEach(function (w) { notes.append(h('li', null, w)); });
   (o.softs || []).forEach(function (w) { notes.append(h('li', { class: 's' }, w)); });
-  var body = h('div', { class: 'o-body' }, head, pieces, acc, notes);
+  var why = h('details', { class: 'o-why' }, h('summary', null, 'Warum dieses Outfit?'), notes);
+  var body = h('div', { class: 'o-body' }, head, h('div', { class: 'o-main' + (fig ? '' : ' nofig') }, fig, pieces), acc, warns, why);
   if (opt.actions) {
     var wearBtn = h('button', { class: 'btn', type: 'button' }, ico('check'), 'Das trage ich');
     var saveBtn = h('button', { class: 'btn ghost', type: 'button' }, ico('bookmark'), 'Merken');
@@ -289,7 +342,17 @@ function outfitCard(o, opt) {
     });
     saveBtn.addEventListener('click', function () { toggleSaved(it, opt.ctx || {}); updSave(); });
     updSave();
-    body.append(h('div', { class: 'o-actions' }, wearBtn, saveBtn));
+    var likeBtn = h('button', { class: 'btn ghost icon', type: 'button', 'aria-label': 'Gefällt mir', title: 'Gefällt mir' }, ico('up1'));
+    var nopeBtn = h('button', { class: 'btn ghost icon', type: 'button', 'aria-label': 'Nicht mein Stil', title: 'Nicht mein Stil' }, ico('down1'));
+    function updFb() {
+      var v = feedbackFor(key);
+      likeBtn.setAttribute('aria-pressed', v > 0 ? 'true' : 'false');
+      nopeBtn.setAttribute('aria-pressed', v < 0 ? 'true' : 'false');
+    }
+    likeBtn.addEventListener('click', function () { rateOutfit(it, 1); updFb(); });
+    nopeBtn.addEventListener('click', function () { rateOutfit(it, -1); updFb(); });
+    updFb();
+    body.append(h('div', { class: 'o-actions' }, wearBtn, saveBtn, h('div', { class: 'rate', role: 'group', 'aria-label': 'Bewerten' }, likeBtn, nopeBtn)));
   }
   return h('article', { class: 'outfit', 'aria-label': 'Vorschlag ' + ((opt.i || 0) + 1) + ': ' + main.map(function (x) { return x.name; }).join(', ') }, spine, body);
 }
@@ -329,6 +392,37 @@ function wearOutfit(items, ctx) {
   toast(msg);
   changed();
 }
+/* ---------- Vorlieben lernen ----------
+   Jede Bewertung zählt für alle Paare von Teilen im Outfit: gefällt +1, nicht mein Stil −1,5,
+   jedes getragene Outfit +0,3. Die Engine verrechnet das über ctx.pairs. */
+var PREF = { sig: null, pairs: null, avoid: [] };
+function prefSig() { return S.feedback.length + ':' + ((S.feedback[0] || {}).id || '') + ':' + S.diary.length + ':' + ((S.diary[0] || {}).id || ''); }
+function buildPrefs() {
+  var sig = prefSig();
+  if (PREF.sig === sig) return PREF;
+  var p = {}, avoid = [];
+  function addAll(ids, w) {
+    ids = (ids || []).slice().sort();
+    for (var i = 0; i < ids.length; i++) for (var j = i + 1; j < ids.length; j++) { var k = ids[i] + '|' + ids[j]; p[k] = (p[k] || 0) + w; }
+  }
+  S.feedback.forEach(function (f) { addAll(f.ids, f.v > 0 ? 1 : -1.5); if (f.v < 0 && f.ck) avoid.push(f.ck); });
+  S.diary.forEach(function (d) { addAll(d.ids, 0.3); });
+  PREF = { sig: sig, pairs: Object.keys(p).length ? p : null, avoid: avoid };
+  return PREF;
+}
+function prefPairs() { return buildPrefs().pairs; }
+function prefAvoid() { return buildPrefs().avoid; }
+function feedbackFor(key) { var f = S.feedback.filter(function (x) { return x.key === key; })[0]; return f ? f.v : 0; }
+function rateOutfit(items, v) {
+  var key = fullKey(items), old = S.feedback.filter(function (x) { return x.key === key; })[0];
+  if (old) Store.delFeedback(old.id);
+  if (old && old.v === v) { toast('Bewertung zurückgenommen.'); V.dirty.more = true; return; }
+  Store.putFeedback({ id: uid(), ts: Date.now(), v: v, key: key, ck: AK.comboKey(items), ids: itemsOf(items).map(function (x) { return x.id; }) });
+  if (S.feedback.length > 600) S.feedback.slice(600).forEach(function (f) { Store.delFeedback(f.id); });
+  toast(v > 0 ? 'Gemerkt: Das gefällt dir. Ähnliches schlage ich öfter vor.' : 'Verstanden. Diese Kombination zeige ich nicht mehr, Ähnliches seltener.');
+  V.dirty.more = true;
+}
+
 function savedList() { return Array.isArray(S.settings.saved) ? S.settings.saved : []; }
 function isSaved(key) { return savedList().some(function (s) { return s.key === key; }); }
 function toggleSaved(items, ctx) {

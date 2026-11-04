@@ -1,5 +1,5 @@
 /* ===== Ankleide: Oberfläche, Teil 1 (Helfer, Speicher, Fotos) ===== */
-var S = { items: [], diary: [], settings: {}, ready: false, mode: 'boot', syncErr: false };
+var S = { items: [], diary: [], feedback: [], settings: {}, ready: false, mode: 'boot', syncErr: false };
 var V = { tab: 'today', results: null, scan: null };
 var $ = function (id) { return document.getElementById(id); };
 
@@ -102,11 +102,11 @@ var Store = {
   load: function () {
     try {
       var raw = localStorage.getItem('ankleide.v1');
-      if (raw) { var o = JSON.parse(raw); S.items = (o.items || []).map(AK.normalize); S.diary = o.diary || []; S.settings = o.settings || {}; }
+      if (raw) { var o = JSON.parse(raw); S.items = (o.items || []).map(AK.normalize); S.diary = o.diary || []; S.feedback = o.feedback || []; S.settings = o.settings || {}; }
     } catch (e) {}
   },
   saveLocal: function () {
-    try { localStorage.setItem('ankleide.v1', JSON.stringify({ items: S.items, diary: S.diary, settings: S.settings })); }
+    try { localStorage.setItem('ankleide.v1', JSON.stringify({ items: S.items, diary: S.diary, feedback: S.feedback, settings: S.settings })); }
     catch (e) { toast('Lokaler Speicher voll. Lösche Teile oder nutze kleinere Fotos.'); }
   },
   write: function (id, data) {
@@ -142,6 +142,15 @@ var Store = {
     S.diary = S.diary.filter(function (x) { return x.id !== id; });
     this.remove('d_' + id);
   },
+  /* Bewertungen von Outfits: {id, ts, v: 1 | -1, ids: [...]} */
+  putFeedback: function (e) {
+    S.feedback.unshift(e);
+    this.write('f_' + e.id, Object.assign({ kind: 'f' }, e));
+  },
+  delFeedback: function (id) {
+    S.feedback = S.feedback.filter(function (x) { return x.id !== id; });
+    this.remove('f_' + id);
+  },
   setSetting: function (k, v) {
     S.settings[k] = v;
     this.write('settings', Object.assign({ kind: 's' }, S.settings));
@@ -159,16 +168,18 @@ var Store = {
       var self = this;
       this.timer = setTimeout(function () { S.syncErr = true; renderSync(); }, 10000);
       this.col.onSnapshot(function (snap) {
-        var items = [], diary = [], settings = {};
+        var items = [], diary = [], feedback = [], settings = {};
         snap.docs.forEach(function (d) {
           var v = d.data(); if (!v) return;
           var o = Object.assign({}, v); delete o.kind;
           if (d.id.indexOf('g_') === 0) items.push(AK.normalize(o));
           else if (d.id.indexOf('d_') === 0) diary.push(o);
+          else if (d.id.indexOf('f_') === 0) feedback.push(o);
           else if (d.id === 'settings') settings = o;
         });
         diary.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-        S.items = items; S.diary = diary; S.settings = settings;
+        feedback.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+        S.items = items; S.diary = diary; S.feedback = feedback; S.settings = settings;
         if (!snap.metadata.fromCache) { clearTimeout(self.timer); S.syncErr = false; }
         S.ready = true; onData();
       }, function (e) { self.fail(e); S.ready = true; onData(); });

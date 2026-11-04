@@ -15,7 +15,7 @@ var ROOT = __dirname;
 var DIST = path.join(ROOT, 'dist');
 var FONTS = 'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400..700&display=swap';
 var CSS = ['styles.css', 'ui.css'];
-var JS = ['data.js', 'engine.js', 'engine2.js', 'engine3.js', 'ui1.js', 'ui2.js', 'ui3.js', 'ui4.js', 'ui5.js'];
+var JS = ['data.js', 'engine.js', 'engine2.js', 'engine3.js', 'ui1.js', 'art.js', 'ui2.js', 'ui3.js', 'ui4.js', 'ui5.js'];
 var DESCRIPTION = 'Ankleide schlägt dir Outfits aus deinem eigenen Schrank vor, passend zu Dresscode, Wetter, Weg und Aktivität.';
 var BOOT = [
   '/* ---- Start ---- */',

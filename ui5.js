@@ -35,11 +35,11 @@ function needItems(box, what) {
 }
 function demoNote() { return isDemo() ? h('div', { class: 'mono' }, 'Berechnet mit dem Beispielschrank') : null; }
 function levelChips(get, toggle, label) {
-  return chipGroup(AK.LEVELS.map(function (lv) { return { id: lv.id, label: SHORT[lv.id] }; }), get, toggle, label);
+  return chipGroup(LV.map(function (L) { return { id: L, label: AK.LEVEL_SHORT[L] }; }), get, toggle, label);
 }
 function levelSelect(id, value, onChange) {
   var s = h('select', { id: id });
-  AK.LEVELS.forEach(function (lv) { s.append(h('option', { value: String(lv.id) }, lv.name)); });
+  LV.forEach(function (L) { s.append(h('option', { value: String(L) }, levelName(L))); });
   s.value = String(value);
   s.addEventListener('change', function () { onChange(Number(s.value)); });
   return s;
@@ -62,7 +62,7 @@ function tempRange(id, get, set) {
 /* ---------- Lücken ---------- */
 function drawGaps(box) {
   if (needItems(box, 'die Lückenanalyse')) return;
-  var g = AK.gaps(wardrobe(), todayStr());
+  var g = AK.gaps(wardrobe(), todayStr(), LV);
   var have = g.basics.filter(function (b) { return b.have; }).length;
   var list = h('div');
   g.basics.forEach(function (b) {
@@ -201,15 +201,17 @@ function drawCapsule(box, r) {
 var WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 function planWeek(o) {
   var W = wardrobe().map(function (x) { return Object.assign({}, x); });
-  var start = addDays(todayStr(), 1), avoid = [], out = [];
+  var start = addDays(todayStr(), 1), avoid = [], out = [], prevTop = null;
   for (var i = 0; i < o.days; i++) {
     var date = addDays(start, i), wd = new Date(date + 'T12:00:00').getDay(), weekend = wd === 0 || wd === 6;
     var L = weekend ? o.eLevel : o.wLevel, act = weekend ? o.eAct : o.wAct;
-    if (isSportAct(act)) L = 0;
     var ctx = { level: L, weather: { temp: o.temp, rain: o.rain, snow: false, wind: false, sun: o.temp >= 20 && !o.rain }, transport: V.ctx.transport,
-      factors: [], must: [], boldness: V.ctx.boldness, onlyBasics: false, seed: i + 1, today: date, activity: act,
+      factors: [], must: [], boldness: V.ctx.boldness, onlyBasics: false, seed: i + 1, today: date, activity: act, pairs: prefPairs(),
       season: AK.seasonFor(o.temp, Number(date.slice(5, 7))) };
-    var r = AK.suggest(W, ctx, { n: 1, avoid: avoid });
+    // Oberteil vom Vortag ruht, solange es eine Alternative gibt
+    var Wd = prevTop ? W.map(function (x) { return x.id === prevTop ? Object.assign({}, x, { avail: false }) : x; }) : W;
+    var r = AK.suggest(Wd, ctx, { n: 1, avoid: avoid.concat(prefAvoid()) });
+    if (!r.outfits.length && prevTop) r = AK.suggest(W, ctx, { n: 1, avoid: avoid.concat(prefAvoid()) });
     var of = r.outfits[0] || null;
     if (of) {
       avoid.push(of.key);
@@ -219,6 +221,7 @@ function planWeek(o) {
         x.last = k === 'top' ? date : addDays(date, -2);
       });
     }
+    prevTop = of ? of.items.top.id : null;
     out.push({ date: date, wd: wd, weekend: weekend, ctx: ctx, outfit: of, missing: r.missing });
   }
   return out;
@@ -332,7 +335,7 @@ function drawDiary(box) {
 
 /* ---------- Einstellungen, Export, Import ---------- */
 function exportData() {
-  return JSON.stringify({ app: 'ankleide', version: 1, exported: new Date().toISOString(), items: S.items, diary: S.diary, settings: S.settings }, null, 1);
+  return JSON.stringify({ app: 'ankleide', version: 2, exported: new Date().toISOString(), items: S.items, diary: S.diary, feedback: S.feedback, settings: S.settings }, null, 1);
 }
 function cleanItem(x) {
   if (!x || typeof x !== 'object' || !AK.TYPES[x.type]) return null;
@@ -371,10 +374,16 @@ function importData(text) {
   if (!o || typeof o !== 'object' || !Array.isArray(o.items)) return { err: 'Im JSON fehlt die Liste „items“. Nutze einen Export aus Ankleide.' };
   var items = o.items.map(cleanItem).filter(Boolean);
   var diary = Array.isArray(o.diary) ? o.diary.map(cleanDiary).filter(Boolean) : [];
+  var fb = Array.isArray(o.feedback) ? o.feedback.filter(function (f) { return f && Array.isArray(f.ids) && (f.v === 1 || f.v === -1); }).map(function (f) {
+    return { id: String(f.id || uid()).replace(/[^A-Za-z0-9_.~:@+-]/g, '').slice(0, 40) || uid(), ts: Number(f.ts) || Date.now(), v: f.v,
+      key: String(f.key || '').slice(0, 300), ck: String(f.ck || '').slice(0, 200), ids: f.ids.slice(0, 8).map(String) };
+  }) : [];
   if (!items.length && !diary.length) return { err: 'Keine gültigen Teile gefunden.' };
   items.forEach(function (it) { Store.putItem(it); });
   var have = {}; S.diary.forEach(function (e) { have[e.id] = 1; });
   diary.sort(function (a, b) { return a.ts - b.ts; }).forEach(function (e) { if (!have[e.id]) Store.putDiary(e); });
+  var haveF = {}; S.feedback.forEach(function (f) { haveF[f.id] = 1; });
+  fb.forEach(function (f) { if (!haveF[f.id]) Store.putFeedback(f); });
   S.diary.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
   V.needsRecalc = true;
   return { items: items.length, diary: diary.length, skipped: o.items.length - items.length };
@@ -382,6 +391,7 @@ function importData(text) {
 function wipeAll() {
   S.items.slice().forEach(function (x) { Store.delItem(x.id); });
   S.diary.slice().forEach(function (e) { Store.delDiary(e.id); });
+  S.feedback.slice().forEach(function (f) { Store.delFeedback(f.id); });
   S.settings = {};
   Store.write('settings', { kind: 's' });
   V.ctx.must = []; V.results = null; V.needsRecalc = true; V.more.cap.res = null; V.more.plan.res = null;
@@ -399,7 +409,63 @@ function drawSettings(box) {
     st.append(h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Darstellung'),
       seg([{ id: 'auto', label: 'Wie System' }, { id: 'light', label: 'Hell' }, { id: 'dark', label: 'Dunkel' }], themePref, setTheme, 'Darstellung')));
   }
+  if (S.mode !== 'db') {
+    var bytes = 0; try { bytes = (localStorage.getItem('ankleide.v1') || '').length * 2; } catch (e) {}
+    st.append(h('div', { class: 'stack', style: 'gap:4px' }, h('span', { class: 'flabel' }, 'Belegt'),
+      h('div', { class: 'bars' }, h('div', { class: 'br' }, h('span', null, (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB'),
+        h('span', { class: 'track', 'aria-hidden': 'true' }, h('i', { style: 'width:' + Math.min(100, Math.round(bytes / (5 * 1048576) * 100)) + '%' })), h('span', { class: 'v' }, 'von ca. 5 MB'))),
+      h('span', { class: 'muted small' }, 'Fotos brauchen am meisten Platz, etwa 30 bis 50 KB pro Teil.')));
+  }
   box.append(sec('Speicher', st));
+
+  var wx = h('div', { class: 'card stack' });
+  if (IN_CLAUDE) wx.append(h('div', { class: 'muted small' }, 'In claude.ai kann Ankleide kein Wetter aus dem Internet laden. In der eigenständigen Fassung (zum Beispiel auf deinem Raspberry Pi oder über GitHub Pages) kommt das Wetter automatisch von Open-Meteo.'));
+  else {
+    wx.append(checkbox('set-wxlive', 'Wetter automatisch laden (Open-Meteo, ohne Anmeldung)', function () { return S.settings.wxLive !== false; },
+      function (v) { Store.setSetting('wxLive', v); if (v) wxLoad(true); else { WX.state = 'off'; wxRender(); } }));
+    var pl = wxPlace();
+    wx.append(h('div', { class: 'small' }, ico('pin'), ' Ort: ', h('b', null, pl.name), pl.region ? h('span', { class: 'muted' }, ' · ' + pl.region) : null));
+    var placeQ = h('input', { type: 'search', id: 'set-place', placeholder: 'Ort suchen, z. B. Freiburg', autocomplete: 'off', 'aria-label': 'Ort für das Wetter suchen' });
+    var hits = h('div', { class: 'plist', id: 'set-place-hits', 'aria-live': 'polite' });
+    function findPlace() {
+      var q = placeQ.value.trim(); if (q.length < 2) return;
+      clear(hits); hits.append(h('div', { class: 'status busy' }, 'Suche …'));
+      fetch('https://geocoding-api.open-meteo.com/v1/search?count=6&language=de&name=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (d) {
+        clear(hits);
+        var res = (d && d.results) || [];
+        if (!res.length) { hits.append(h('div', { class: 'muted small' }, 'Kein Ort gefunden.')); return; }
+        res.forEach(function (x) {
+          var region = [x.admin1, x.country].filter(Boolean).join(', ');
+          hits.append(h('button', { class: 'pick', type: 'button', onclick: function () {
+            Store.setSetting('wxPlace', { name: x.name, lat: x.latitude, lon: x.longitude, region: region });
+            V.ctx.wxAuto = true; wxLoad(true); toast('Wetter-Ort: ' + x.name); drawMore();
+          } }, ico('pin'), h('span', { class: 'pn' }, x.name, h('small', null, region)), h('span')));
+        });
+      }).catch(function () { clear(hits); hits.append(h('div', { class: 'muted small' }, 'Ortssuche gerade nicht erreichbar.')); });
+    }
+    placeQ.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); findPlace(); } });
+    wx.append(h('div', { class: 'toolbar' }, placeQ, h('button', { class: 'btn ghost', type: 'button', id: 'set-place-go', onclick: findPlace }, ico('search'), 'Suchen')), hits);
+    if (window.isSecureContext && navigator.geolocation) {
+      wx.append(h('button', { class: 'btn ghost small', type: 'button', onclick: function () {
+        navigator.geolocation.getCurrentPosition(function (pos) {
+          Store.setSetting('wxPlace', { name: 'Mein Standort', lat: Math.round(pos.coords.latitude * 1000) / 1000, lon: Math.round(pos.coords.longitude * 1000) / 1000, region: '' });
+          V.ctx.wxAuto = true; wxLoad(true); toast('Wetter für deinen Standort.'); drawMore();
+        }, function () { toast('Standort nicht verfügbar. Suche den Ort stattdessen.'); }, { timeout: 8000 });
+      } }, ico('pin'), 'Meinen Standort verwenden'));
+    }
+  }
+  box.append(sec('Wetter', wx));
+
+  var likes = S.feedback.filter(function (f) { return f.v > 0; }).length, nopes = S.feedback.length - likes;
+  var pref = h('div', { class: 'card stack' },
+    h('div', { class: 'kpi' }, h('div', null, h('b', null, likes), h('span', { class: 'mono' }, 'gefällt mir')),
+      h('div', null, h('b', null, nopes), h('span', { class: 'mono' }, 'nicht mein Stil')),
+      h('div', null, h('b', null, S.diary.length), h('span', { class: 'mono' }, 'getragen'))),
+    h('div', { class: 'muted small' }, 'Ankleide lernt aus deinen Bewertungen und aus dem, was du trägst: Kombinationen, die dir gefallen, kommen öfter, abgelehnte nicht mehr.'));
+  if (S.feedback.length) pref.append(confirmBtn('Bewertungen zurücksetzen', 'Alle ' + S.feedback.length + ' Bewertungen löschen? Was du getragen hast, bleibt im Tagebuch.', 'Ja, zurücksetzen', function () {
+    S.feedback.slice().forEach(function (f) { Store.delFeedback(f.id); }); V.needsRecalc = true; toast('Bewertungen zurückgesetzt.'); changed();
+  }, 'ghost'));
+  box.append(sec('Vorlieben', pref));
 
   var demoIds = S.items.filter(function (x) { return /^demo\d+$/.test(x.id); });
   var demo = h('div', { class: 'card stack' },
@@ -432,7 +498,8 @@ function drawSettings(box) {
   var exBox = h('div', { class: 'stack', hidden: true }, exTa, exBtns);
   var ex = h('div', { class: 'card stack' },
     h('div', { class: 'muted small' }, 'Sichert Teile (mit Fotos), Tagebuch und Einstellungen als JSON-Text.' + (IN_CLAUDE ? ' Kopiere den Text und bewahre ihn auf.' : '')),
-    h('button', { class: 'btn', type: 'button', id: 'set-export-go', onclick: function () { exTa.value = exportData(); exBox.hidden = false; exTa.focus(); } }, ico('down'), 'Export erstellen'),
+    h('div', { class: 'mono' }, S.settings.lastExport ? 'Letzter Export: ' + deDate(S.settings.lastExport) : 'Noch kein Export'),
+    h('button', { class: 'btn', type: 'button', id: 'set-export-go', onclick: function () { exTa.value = exportData(); exBox.hidden = false; exTa.focus(); Store.setSetting('lastExport', todayStr()); } }, ico('down'), 'Export erstellen'),
     exBox);
 
   var imTa = h('textarea', { id: 'set-import', rows: '4', placeholder: 'Export-JSON hier einfügen', 'aria-label': 'Daten zum Importieren' });

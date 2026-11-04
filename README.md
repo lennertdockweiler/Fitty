@@ -1,6 +1,6 @@
 # Ankleide
 
-Ankleide ist eine Outfit-App für den Moment vor dem Schrank. Du gibst den Anlass an (Dresscode von „Sportlich“ bis „Black Tie“), dazu Wetter, Weg und Aktivität, und bekommst drei passende Kombinationen aus deinem eigenen Schrank. Die App läuft komplett im Browser, auf dem Handy und am Rechner, und ist eine einzige Datei: `index.html`.
+Ankleide ist eine Outfit-App für den Moment vor dem Schrank. Du wählst den Anlass (Dresscode von „Entspannt“ bis „Business Formal“ und was du vorhast), das Wetter kommt automatisch oder von dir. Ankleide schlägt drei passende Kombinationen aus deinem eigenen Schrank vor, jede mit einer Zeichnung, wie das Outfit ungefähr aussieht. Die App läuft komplett im Browser, auf dem Handy und am Rechner, und ist eine einzige Datei: `index.html`.
 
 Auftraggeber: Lennert Dockweiler, Konstanz. Sprache der App: Deutsch, Du-Form.
 
@@ -10,84 +10,108 @@ Auftraggeber: Lennert Dockweiler, Konstanz. Sprache der App: Deutsch, Du-Form.
 node build.js
 ```
 
-Danach `index.html` im Browser öffnen. Es gibt keine Abhängigkeiten außer Node (ab Version 18) für Build und Tests. Die Schriften kommen von Google Fonts. Ohne Netz greifen die hinterlegten Ersatzschriften, alles andere funktioniert offline.
+Danach `index.html` im Browser öffnen. Es gibt keine Abhängigkeiten außer Node (ab Version 18) für Build und Tests. Online lädt die App die Schriften (Google Fonts) und das Wetter (Open-Meteo). Ohne Netz greifen Ersatzschriften und das Wetter stellst du selbst ein, alles andere funktioniert offline.
 
 ## Bedienung
 
-Unten gibt es vier Tabs. Solange dein eigener Schrank leer ist, zeigt Ankleide einen Beispielschrank mit 44 Teilen, damit du sofort siehst, wie die Vorschläge aussehen.
+Unten gibt es vier Tabs. Solange dein eigener Schrank leer ist, zeigt Ankleide einen Beispielschrank mit 46 Teilen. Alle Teile sind gezeichnet, so siehst du sofort, wie die Vorschläge aussehen.
 
 ### Heute
 
-- **Anlass · Dresscode:** Ein Maßband mit sieben Stufen: 0 Sportlich, 1 Entspannt, 2 Casual, 3 Smart Casual, 4 Business Casual, 5 Business/Cocktail, 6 Black Tie. Unter dem Maßband stehen der Name der Stufe und typische Anlässe.
-- **Wetter:** Vorlagen (Frost, Kühl, Nass, Mild, Warm, Heiß), ein Regler von −10 bis 38 °C und die Schalter Regen, Schnee, Wind und Sonnig. Darunter steht die gefühlte Temperatur. Die Jahreszeit steht auf „Auto“ oder wird fest gewählt.
-- **Unterwegs:** Auto, Bus & Bahn, Fahrrad oder zu Fuß, dazu Faktoren wie „Viel Laufen“ oder „Abends kühler“ und eine Aktivität. Tennis, Joggen, Gym und Wandern stellen die Stufe auf „Sportlich“.
-- **Stil:** Sicher, Ausgewogen oder Mutig (wie viel Farbe und Muster erlaubt ist). Dazu der Schalter „Nur Basics“.
-- **Das soll rein:** Wunschteile kommen auf jeden Fall ins Outfit. Möglich ist ein bestimmtes Teil (zum Beispiel „Grauer Wollpullover“) oder eine Art, wahlweise mit Farbe (zum Beispiel „eine Jeans“ oder „ein Sakko in Navy“). Accessoires gehen auch.
-- **Vorschläge:** Drei Outfit-Etiketten. Jedes hat einen Farbstreifen aus den Teilefarben, einen Wert für die Stimmigkeit (5 bis 99), die Teile mit Vorschau, Accessoires, Begründungen und Warnungen. Warnungen stehen orange und oben, zum Beispiel „Navy Sakko ist für Tennis unpraktisch“. Die Vorschläge aktualisieren sich bei jeder Änderung. „Nochmal würfeln“ zeigt drei andere Kombinationen.
-- **Das trage ich** zählt die Teile als getragen (Zähler und Datum) und legt einen Tagebucheintrag an. **Merken** legt das Outfit unter Mehr → Tagebuch ab.
+- **Anlass:**
+  - Ein Maßband mit fünf Dresscode-Stufen:
+    1. Entspannt
+    2. Casual
+    3. Smart Casual
+    4. Business Casual: wie Smart Casual, aber strenger, Hemd statt T-Shirt, keine Jeans, keine Krawatte
+    5. Business Formal: Anzug mit Krawatte
+  - Darunter wählst du, was du vorhast, zum Beispiel Büro, Kundentermin, Date, Theater, Hochzeit (Gast) oder Ausflug. Passt die Stufe nicht zum Vorhaben, stellt Ankleide sie um und sagt das.
+- **Wetter:**
+  - Du wählst „Heute“ oder „Morgen“, die Temperatur (Tageshöchstwert, mit −/+ oder Regler) und eine Wetterlage (Sonnig, Bewölkt, Regen, Schnee), dazu „Windig“.
+  - In der eigenständigen Fassung lädt Ankleide das Wetter automatisch von Open-Meteo (Standard: Konstanz, Ort änderbar). Änderst du selbst etwas, steht dort „eigene Angabe“, und „Live-Wetter nehmen“ holt die Vorhersage zurück.
+- **Das soll rein:** Wunschteile kommen auf jeden Fall ins Outfit. Das geht als bestimmtes Teil oder als Art, wahlweise mit Farbe („ein Sakko in Navy“). Beides ist durchsuchbar.
+- **Unterwegs & Stil:** Diese Angaben sind eingeklappt: Fortbewegung (Auto, Bus & Bahn, Fahrrad, zu Fuß), Faktoren wie „Viel Laufen“, Farbmut und „Nur Basics“.
+- **Vorschläge:**
+  - Drei Outfit-Etiketten, jede mit einer Zeichnung an der Schneiderpuppe, den Teilen mit Bild, Accessoires und Warnungen. Die Begründung klappst du unter „Warum dieses Outfit?“ auf.
+  - Die Vorschläge aktualisieren sich bei jeder Änderung. Sind sie gerade nicht im Bild, erscheint unten „Vorschläge ansehen“.
+  - „Nochmal würfeln“ zeigt drei andere Kombinationen.
+- **Pro Outfit:**
+  - **Das trage ich** zählt die Teile als getragen und legt einen Tagebucheintrag an.
+  - **Merken** legt das Outfit im Tagebuch ab.
+  - **Daumen hoch oder runter** bringt Ankleide bei, was dir gefällt.
 
 ### Schrank
 
-Suche, Bereichs-Chips (Oberteil, Layer, Jacke/Mantel, Hose, Schuhe, Accessoires) und Filter für Lieblinge, Basics, „Nie tragen“ und „In der Wäsche“. Ein Tipp auf ein Teil öffnet das Bearbeiten-Sheet: Name, Art, Farbe, Muster, Dresscode von/bis, Wärme, Komfort, Sporttauglichkeit, Jahreszeiten, die Schalter (wetterfest, Lieblingsteil, Basic, nie tragen, in der Wäsche) und ein Foto. Löschen fragt im Sheet noch einmal nach. „Heute unbedingt tragen“ setzt das Teil als Wunschteil. Mit dem Filter „In der Wäsche“ erscheint der Knopf „Alles wieder sauber“.
+- **Suche:** Mehrere Wörter, alle müssen passen. „blau hemd“ findet Navy-, Hell- und Indigo-Hemden, „pulli“ findet Pullover, „liebling“ deine Lieblingsteile.
+- **Filter:** Bereichs-Chips (Oberteil bis Accessoires) und Filter für Lieblinge, Basics, „Nie tragen“ und „In der Wäsche“.
+- **Ansicht:** Jedes Teil erscheint als Zeichnung in seiner Farbe und seinem Muster. Hast du ein eigenes Foto hinterlegt, siehst du das Foto.
+- **Bearbeiten-Sheet:** Name, Art, Farbe, Muster, Dresscode von/bis, Wärme, Komfort, Sporttauglichkeit, Jahreszeiten, Schalter und Foto. Löschen fragt im Sheet noch einmal nach. „Heute unbedingt tragen“ setzt das Teil als Wunschteil.
 
 ### Scan
 
-„Foto aufnehmen“ öffnet auf dem Handy die Kamera, „Foto wählen“ die Galerie. Ankleide verkleinert das Bild auf 400 px und schlägt die Farbe vor. Die Art wählst du aus. Läuft die App als Artifact in claude.ai und hast du die Freigabe erteilt, erkennt Claude Art, Farbe und Muster. Danach gibt es drei Möglichkeiten:
-
-- **Mit Schrank kombinieren:** drei Outfits mit dem gescannten Teil. Wetter und Weg kommen aus „Heute“, die Stufe wählst du innerhalb der Spanne des Teils.
-- **Einkaufs-Check:** ein Urteil („Sehr vielseitig …“ bis „Passt aktuell zu fast nichts …“), die Zahl stimmiger Outfits, die Verteilung nach Stufe und die besten Partnerteile.
+- **Foto:** „Foto aufnehmen“ öffnet auf dem Handy die Kamera, „Foto wählen“ die Galerie. Ankleide verkleinert das Bild auf 400 px und schlägt die Farbe vor. Läuft die App als Artifact in claude.ai, erkennt Claude auch Art und Muster.
+- **Mit Schrank kombinieren:** drei Outfits mit dem gescannten Teil, jeweils mit Zeichnung.
+- **Einkaufs-Check:** ein Urteil, die Zahl stimmiger Outfits, die Verteilung nach Stufe und die besten Partnerteile.
 - **In den Schrank:** speichert das Teil mit Foto.
 
 ### Mehr
 
-- **Lücken:** eine Checkliste mit 13 Basics und eine Abdeckungsmatrix (Stufen × Kühl/Mild/Warm/Regen): grün gut, gelb mit Kompromissen, grau Lücke.
-- **Staples:** eine Rangliste der vielseitigsten Teile, die mit getragenen Outfits auch die echte Nutzung einrechnet. Dazu „Schläfer“ (vielseitig, aber selten getragen) und die meistgetragenen Teile.
-- **Packen:** eine Kapselgarderobe für 1 bis 21 Tage, mit Handgepäck oder Koffer, Temperatur, Regen, Dresscode-Stufen und Aktivität. Ergebnis: die Teile nach Bereich mit der Zahl der Outfits, in denen sie vorkommen, die Gesamtzahl möglicher Outfits, was du am Reisetag trägst, Beispiel-Outfits und Warnungen. Die Häkchen „eingepackt“ dienen nur dem Abhaken beim Packen und werden nicht gespeichert.
-- **Woche:** Outfits für 3, 5 oder 7 Tage ab morgen ohne Wiederholung, getrennt nach Werktag und Wochenende.
-- **Tagebuch:** gemerkte und getragene Outfits und die meistgetragenen Teile. Entfernst du einen Eintrag, sinkt der Tragezähler wieder.
-- **Einstellungen:** Speicherort, Darstellung (nur in der eigenständigen Fassung), Beispielschrank an/aus/übernehmen/entfernen, automatische Wäsche, Export und Import als JSON und „Alle Daten löschen“ mit zweiter Bestätigung.
+- **Lücken:** eine Checkliste mit 13 Basics und eine Abdeckungsmatrix (5 Stufen × Kühl/Mild/Warm/Regen).
+- **Staples:** die vielseitigsten Teile, „Schläfer“ (vielseitig, aber selten getragen) und die meistgetragenen Teile.
+- **Packen:** eine Kapselgarderobe für 1 bis 21 Tage, mit Handgepäck oder Koffer, Temperatur, Regen, Stufen und Aktivität.
+- **Woche:** Outfits für 3, 5 oder 7 Tage ab morgen, getrennt nach Werktag und Wochenende. Das Oberteil wechselt jeden Tag.
+- **Tagebuch:** gemerkte und getragene Outfits und die meistgetragenen Teile.
+- **Einstellungen:**
+  - Speicherort und Speicherbelegung
+  - Wetter (Live an/aus, Ort suchen, eigener Standort)
+  - Vorlieben (Zahl der Bewertungen, zurücksetzen)
+  - Beispielschrank und Wäsche-Automatik
+  - Export und Import als JSON, alle Daten löschen
 
 ## Annahmen
 
-Für den Auftrag war niemand zum Rückfragen da. Diese Entscheidungen habe ich selbst getroffen:
-
-1. **Starttemperatur:** Ankleide nutzt keinen Wetterdienst (offline-tauglich, keine externen Abhängigkeiten). Als Startwert dient der typische Tageshöchstwert in Konstanz für den aktuellen Monat (Januar 3 °C bis Juli/August 24 °C). Ab 20 °C ist „Sonnig“ vorgewählt.
-2. **Vorschläge rechnen sofort neu,** sobald sich eine Angabe ändert. Beim Temperaturregler passiert das beim Loslassen. „Outfits vorschlagen“ rechnet neu und springt zu den Vorschlägen.
-3. **Sportaktivitäten** (Tennis, Joggen, Gym, Wandern) setzen die Stufe auf „Sportlich“. Wechselst du zurück zu einer anderen Aktivität, kehrt die vorherige Stufe zurück.
-4. **Ein Wunschteil je Bereich** (außer Accessoires). Ein neuer Wunsch für denselben Bereich ersetzt den alten, mit Hinweis. So taucht die Engine-Meldung „Zwei Wunschteile …“ im Alltag kaum auf.
-5. **Beispielschrank:** Wer ein Beispielteil ändert, löscht oder ein Outfit daraus trägt, übernimmt den Beispielschrank als eigenen. Das Banner sagt das vorher. Wer im Beispielmodus ein neues Teil anlegt oder scannt, startet einen eigenen Schrank nur mit diesem Teil, außer „Beispielteile behalten“ ist angehakt. Beispielteile lassen sich in den Einstellungen später entfernen oder ergänzen.
-6. **Gemerkte Outfits** liegen in den Einstellungen (`settings.saved`, höchstens 40), weil der vorhandene Speicher nur Teile, Tagebuch und Einstellungen kennt.
-7. **Scan ohne Claude:** Die Art wählst du per Hand (laut Brief ist keine Heuristik nötig). Bleibt der Name leer, setzt Ankleide „Art Farbe“ ein, zum Beispiel „Pullover Grün“.
-8. **Scan mit Claude:** Der Aufruf geht nur im Artifact (`sample.json` mit `modelTier: 'quick'` und dem Bild). Ankleide prüft das Ergebnis gegen die erlaubten Typ-, Farb- und Muster-IDs. Felder, die du schon geändert hast, überschreibt die Erkennung nicht. Jeder Fehler (zum Beispiel `not_granted`) führt ohne Meldung zur Eingabe per Hand.
-9. **Wochenplaner:** Alle Tage haben dieselbe Temperatur. Oberteile bekommen für die zwei folgenden Tage einen deutlichen Abzug, Hosen, Layer und Schuhe am Folgetag einen leichten, Jacken keinen. Dasselbe Outfit kommt im Plan nicht zweimal vor. Fortbewegung und Farbmut kommen aus „Heute“. Der Plan ist ein Vorschlag und wird nicht gespeichert, einzelne Tage kannst du merken.
-10. **Wäsche-Rotation:** Optional wandern Oberteile nach „Das trage ich“ automatisch in die Wäsche. Zurück kommen sie über Schrank → „In der Wäsche“ → „Alles wieder sauber“.
-11. **Export/Import:** Der Export enthält Teile mit Fotos, Tagebuch und Einstellungen. Der Import ergänzt und überschreibt Teile mit gleicher ID und prüft dabei jedes Feld (gültige Typen, Farben, Zahlenbereiche, Fotos nur als JPEG/PNG/WebP-Data-URI). „Als Datei speichern“ gibt es nur in der eigenständigen Fassung, weil claude.ai Downloads aus Artifacts sperrt. Dort kopierst du den Text.
-12. **Zwei Ausgaben:** `build.js` schreibt `index.html` (vollständiges HTML-Dokument) und `dist/artifact.html` (gleicher Inhalt ohne `<!doctype>`, `<head>` und `<body>`, weil claude.ai dieses Gerüst beim Veröffentlichen selbst anlegt).
-13. **Branch:** Gearbeitet wird auf dem Branch dieser Cloud-Sitzung (`claude/outfit-app-development-y6kf1s`), nie auf `main`. Derselbe Stand liegt zusätzlich auf `ankleide-v1`, wie im Auftrag verlangt.
+1. **Dresscode:** Die Engine kennt intern weiter sieben Stufen (0 Sportlich bis 6 Black Tie), damit gespeicherte Teile gültig bleiben. Die Oberfläche bietet nur 1 bis 5 an. Beim Bearbeiten werden Spannen auf 1 bis 5 begrenzt, an den Vorschlägen ändert das nichts.
+2. **Aktivitäten:** Sport (Tennis, Joggen, Gym, Wandern) ist entfernt. Neu sind Homeoffice, Kundentermin, Vorstellungsgespräch, Date, Ausflug, Uni, Kino/Konzert, Theater/Oper, Familienfeier, Party und Hochzeit. Jede hat einen üblichen Dresscode-Bereich. Liegt die gewählte Stufe außerhalb, stellt Ankleide sie auf den nächstgelegenen Rand.
+3. **Wetter:** Der Temperaturwert ist der Tageshöchstwert. Daraus wird die Wetterlage abgeleitet: Schnee bei Schneefall, Regen ab 60 % Regenwahrscheinlichkeit oder bei Regen im Wettercode, Sonnig bei klarem Himmel, sonst Bewölkt. „Windig“ gilt ab 28 km/h. Ohne Live-Wetter startet Ankleide mit dem typischen Höchstwert in Konstanz für den Monat. Das Live-Wetter wird 30 Minuten zwischengespeichert. Die Jahreszeit ergibt sich aus Temperatur und Datum, eine eigene Auswahl gibt es nicht mehr.
+4. **Zeichnungen statt Fotos:** Fotorealistische Bilder kann die App nicht erzeugen, weder offline noch im Artifact gibt es dafür ein Modell. Stattdessen zeichnet Ankleide jedes Teil und jedes Outfit als SVG aus Art, Farbe und Muster (`art.js`). Mäntel, Sakkos und Strickjacken stehen offen, damit die Schichten darunter sichtbar sind.
+5. **Vorlieben:**
+   - Jede Bewertung zählt für alle Paare von Teilen im Outfit: „Gefällt mir“ +1, „Nicht mein Stil“ −1,5, jedes getragene Outfit +0,3.
+   - Die Engine nimmt den Mittelwert über die Paare eines Vorschlags. Genau das gemochte Outfit steigt also stärker als eines, das nur teilweise übereinstimmt.
+   - Abgelehnte Kombinationen (gleiches Oberteil, gleiche Hose, gleiche Schuhe) kommen nicht mehr. Bewerten übernimmt den Beispielschrank nicht.
+6. **Ein Wunschteil je Bereich** (außer Accessoires). Ein neuer Wunsch ersetzt den alten im selben Bereich.
+7. **Beispielschrank:**
+   - Wer ein Beispielteil ändert, löscht oder ein Outfit daraus trägt, übernimmt den Beispielschrank als eigenen. Wer im Beispielmodus ein neues Teil anlegt, startet einen eigenen Schrank nur mit diesem Teil, außer „Beispielteile behalten“ ist angehakt.
+   - Smoking, Fliege, Laufshirt, Laufhose und Laufschuhe sind ausgemustert. Neu sind Teile für Business Casual und Formal (Feinstrick Navy, Stoffhose Navy, Loafer, gestreifte Krawatte, Einstecktuch, Polo Weiß, Strickjacke).
+   - Die Kennungen `demo1` bis `demo51` bleiben fest, damit bereits übernommene Beispielschränke nicht durcheinanderkommen.
+8. **Wochenplaner:** Alle Tage haben dieselbe Temperatur. Das Oberteil vom Vortag ruht, solange es eine Alternative gibt. Hosen, Layer und Schuhe bekommen am Folgetag einen leichten Abzug.
+9. **Scan mit Claude:** nur im Artifact. Das Ergebnis wird gegen die erlaubten IDs geprüft, jeder Fehler führt still zur Eingabe per Hand.
+10. **Datensicherung:** Liegt der Schrank nur im Browser und umfasst mindestens 10 Teile, erinnert der Schrank-Tab an einen Export, wenn der letzte länger als 30 Tage her ist.
+11. **Zwei Ausgaben:** `build.js` schreibt `index.html` (vollständiges Dokument) und `dist/artifact.html` (ohne Dokumentgerüst, für claude.ai).
+12. **Branch:** Gearbeitet wird auf `claude/outfit-app-development-y6kf1s`, derselbe Stand liegt auf `ankleide-v1`. Nie auf `main`.
 
 ## Änderungen an der Engine
 
-Die Engine habe ich nur dort geändert, wo ein Szenario aus der Abnahme oder eine Anforderung sichtbar falsch lief. Alle Änderungen sind in `test3.js` abgesichert.
+Alle Änderungen sind in `test3.js` abgesichert.
 
 | Datei | Änderung | Grund |
 |---|---|---|
-| `engine3.js` | Reine Sportteile (`a = 2` und `fmax ≤ 1`) kommen nur in die Kapsel, wenn eine Sport-Aktivität oder die Stufe „Sportlich“ gewählt ist. Beim Wandern nur wandertaugliche (Laufschuhe). | Bekannte Schwäche 1: Laufshirt in der 10-Tage-Kapsel bei 24 °C |
-| `engine2.js` | Bei Black Tie kein Gürtel zum Smoking | Szenario „Black Tie bei 5 °C mit Regen“ |
-| `engine.js` | Bei einem Wunsch nach einer Art („eine Jeans“) kommen alle passenden Teile in Frage, das beste zuerst. Vorher wurde immer das erste Teil der Liste genommen. | „Nochmal würfeln“ hat die Jeans nie gewechselt |
-| `engine.js`, `engine2.js` | Ein Wunsch nach einer Art kann eine Farbe tragen: `{kind:'type', type:'sakko', color:'navy'}` | Anforderung „ein Navy-Sakko“ |
+| `data.js` | Stufe 4 und 5 heißen „Business Casual“ und „Business Formal“, `AK.UI_LEVELS`, neue Aktivitäten mit Dresscode-Bereich, Beispielschrank ohne Sport/Black Tie | Wunsch des Auftraggebers |
+| `engine.js` | Business Casual: Bonus für Hemd, Abzug für Jeans und T-Shirt | „etwas strenger als Smart Casual“ |
+| `engine.js` | Optionale gelernte Vorlieben über `ctx.pairs` | Vorlieben sollen mitwachsen |
+| `engine.js` | Ein Wunsch nach einer Art berücksichtigt alle passenden Teile, optional mit Farbe | „eine Jeans“, „ein Navy-Sakko“ |
+| `engine2.js` | Hinweis, wenn bei Business Formal die Krawatte fehlt. Hinweis auf Vorlieben. Einkaufs-Check und Lücken nur über die angebotenen Stufen. | Neue Stufen |
+| `engine2.js` | Kein Gürtel zum Smoking | Abnahme |
+| `engine3.js` | Kapsel nur mit Sportteilen, wenn Sport geplant ist | Bekannte Schwäche 1 |
 
-`ui1.js` habe ich nur ergänzt: Das Sheet schließt mit Escape, der Fokus bleibt im Sheet und kehrt danach zurück, und Bild-URLs werden nach dem Laden freigegeben.
+`ui1.js` habe ich ergänzt: Speicher für Bewertungen (`f_*` im Konto, `feedback` lokal), Escape und Fokus im Sheet.
 
 ## Bekannte Grenzen
 
-- **Typenliste:** Sie ist auf eine klassische Herrengarderobe zugeschnitten (Hemd, Sakko, Smoking, Krawatte …). Rock, Kleid, Bluse oder Pumps fehlen und lassen sich in `data.js` unter `AK.TYPES` ergänzen.
-- **Kein echtes Wetter:** Die Temperatur ist ein Schätzwert, den du einstellst.
-- **Farberkennung ohne Claude:** Sie misst die häufigste Farbe in der Bildmitte gegen den Rand. Auf unruhigem Hintergrund oder bei Mustern liegt sie öfter daneben. Das Muster erkennt sie nicht.
-- **Speicher:** Der Browserspeicher fasst etwa 5 MB, das reicht für rund 100 Teile mit Foto. Danach meldet die App, dass der Speicher voll ist. Lokaler Speicher und Konto-Speicher (claude.ai) werden nicht abgeglichen.
-- **Bewertung:** Stimmigkeit und Einkaufs-Check beruhen auf festen Regeln der Engine (Dresscode-Spanne, Wärme, Farbfamilien, Muster). Geschmack bilden sie nur grob ab. Der Einkaufs-Check rechnet mit drei festen Temperaturen (4, 15 und 25 °C).
-- **Black Tie:** Hosenträger und Kummerbund sind nicht modelliert.
-- **Kapsel:** Am Reisetag trägt man laut Kapsel die schwersten Teile, Wetterwechsel während der Reise sind nicht berücksichtigt.
-- **Tagebuch im Konto:** Jeder Eintrag ist ein eigenes Dokument. claude.ai erlaubt bis zu 25.000 Dokumente je Artifact.
+- **Zeichnungen:** Sie sind Annäherungen. Schnitt, Material und Passform zeigen sie nicht, nur Art, Farbe und Muster. Eigene Fotos erscheinen in Schrank und Teilelisten, die Outfit-Zeichnung bleibt gezeichnet.
+- **Live-Wetter nur in der eigenständigen Fassung:** claude.ai blockiert in Artifacts Abrufe ins Internet. Dort stellst du das Wetter selbst ein. Den eigenen Standort gibt es nur über `https` oder `localhost`, auf einem Raspberry Pi über `http` suchst du den Ort per Name.
+- **Typenliste:** Sie ist auf eine klassische Herrengarderobe zugeschnitten, Rock, Kleid oder Bluse fehlen (ergänzbar in `data.js`).
+- **Speicher im Browser:** etwa 5 MB, das reicht für rund 100 Teile mit Foto. Die Einstellungen zeigen die Belegung. Langfristig ist das Artifact (Konto-Speicher) oder ein Speicher-Dienst auf dem Pi besser.
+- **Bewertung:** Stimmigkeit, Einkaufs-Check und Vorlieben beruhen auf festen Regeln. Geschmack bilden sie nur grob ab.
 
 ## Aufbau
 
@@ -96,23 +120,24 @@ Die Engine habe ich nur dort geändert, wo ein Szenario aus der Abnahme oder ein
 | `data.js` | Stufen, Slots, Typen, Farben, Muster, Aktivitäten, Beispielschrank (`AK.*`) |
 | `engine.js`, `engine2.js`, `engine3.js` | Regel-Engine: Bewertung, Vorschläge, Einkaufs-Check, Lücken, Staples, Kapsel |
 | `styles.css` | Design-Tokens (hell/dunkel), Maßband, Chips, Karten, Etiketten, Sheet, Matrix |
-| `ui.css` | Ergänzungen: Touchziele 44 px, Listen, Formulare, Layout am Rechner |
+| `ui.css` | Ergänzungen: Zeichnungen, Wetter, Suche, Touchziele 44 px, Layout am Rechner |
 | `body.html` | Grundgerüst: Kopf, vier Panels, Tab-Leiste, Sheet und Toast |
 | `ui1.js` | Helfer (`h`, `ico`, `toast`, `openSheet`), Speicher (`Store`), Fotos |
-| `ui2.js` | Start, Tabs, Statusanzeige, Outfit-Etikett, Tragen und Merken |
-| `ui3.js` | Tab „Heute“ |
+| `art.js` | Zeichnungen: jedes Teil einzeln, jedes Outfit an der Schneiderpuppe |
+| `ui2.js` | Start, Tabs, Status, Suche, Outfit-Etikett, Tragen, Merken, Vorlieben |
+| `ui3.js` | Tab „Heute“ mit Live-Wetter |
 | `ui4.js` | Tabs „Schrank“ und „Scan“, Bearbeiten-Sheet |
 | `ui5.js` | Tab „Mehr“ |
 | `build.js` | setzt `index.html` und `dist/artifact.html` zusammen und prüft das Skript mit `node --check` |
-| `test.js`, `test2.js` | Ausgabe-Tests der Engine (laufen ohne Fehler durch) |
-| `test3.js` | Szenario-Tests der Engine mit Prüfungen |
+| `test.js`, `test2.js` | Ausgabe-Tests der Engine aus der Übergabe (laufen ohne Fehler durch) |
+| `test3.js` | 12 Szenario-Tests der Engine mit Prüfungen |
 | `tests/ui-smoke.js` | Smoke-Test der Oberfläche mit Playwright |
 
-Die Reihenfolge im Build ist wichtig: `data.js`, Engine, `ui1.js` bis `ui5.js`, zuletzt der Start (`initApp()` und `Store.init()`).
+Die Reihenfolge im Build: `data.js`, Engine, `ui1.js`, `art.js`, `ui2.js` bis `ui5.js`, zuletzt der Start.
 
 ### Speicher
 
-`Store` (in `ui1.js`) legt alles unter dem Schlüssel `ankleide.v1` im `localStorage` ab. Jeder Zugriff steckt in `try/catch`, die Seite funktioniert auch ohne Speicher. Läuft die Seite als Artifact in claude.ai und ist man angemeldet, landen die Daten stattdessen in der privaten Konto-Datenbank unter `data/users/<id>/` (Teile `g_*`, Tagebuch `d_*`, Einstellungen `settings`). Fotos werden immer als verkleinerte JPEG-Data-URI (400 px) gespeichert, nie als Original.
+`Store` (in `ui1.js`) legt alles unter dem Schlüssel `ankleide.v1` im `localStorage` ab. Jeder Zugriff steckt in `try/catch`. Als Artifact in claude.ai mit Anmeldung landen die Daten in der privaten Konto-Datenbank unter `data/users/<id>/`: Teile `g_*`, Tagebuch `d_*`, Bewertungen `f_*` und Einstellungen `settings`. Fotos werden als verkleinerte JPEG-Data-URI (400 px) gespeichert. Das zuletzt geladene Wetter liegt unter `ankleide.wx`.
 
 ## Tests
 
@@ -134,34 +159,47 @@ node build.js && node tests/ui-smoke.js
 
 Mit npm geht dasselbe über `npm test` (Engine) und `npm run test:ui` (Oberfläche).
 
-- `test.js` und `test2.js` geben Vorschläge aus und laufen ohne Fehler durch.
-- `test3.js` prüft 12 Szenarien mit `assert`, darunter die fünf aus der Abnahme: Black Tie bei 5 °C mit Regen, Joggen bei 28 °C, Tennis mit erzwungenem Sakko, Date mit Jogginghose, Wochenende mit Handgepäck bei 12 °C und Regen. Dazu das Laufshirt in der Kapsel und die Wunschteile.
-- `tests/ui-smoke.js` braucht Playwright mit Chromium (`npm i -D playwright` und `npx playwright install chromium`). Er läuft bei 400 px und 1000 px, jeweils hell und dunkel, und prüft:
-  - App-Start, alle vier Tabs (auch mit den Pfeiltasten)
-  - die Abnahme-Szenarien über die Oberfläche
-  - Wunschteile setzen, „Nochmal würfeln“, „Das trage ich“ (Zähler und Tagebuch)
-  - Teil anlegen, bearbeiten, suchen, löschen
-  - Scan mit Foto und Farberkennung, Einkaufs-Check, Kombinieren, Speichern
-  - Lücken, Staples, Kapsel ohne Laufshirt, Wochenplaner ohne Wiederholung, Tagebuch
-  - Export und Import, zweistufiges Löschen
+- `test3.js` prüft 12 Szenarien:
+  - Business Formal bei 5 °C mit Regen, Business Casual ohne Krawatte und Jeans
+  - Date mit Jogginghose, Wochenende mit Handgepäck, 10-Tage-Kapsel ohne Sportteile
+  - Wunschteile („eine Jeans“, „ein Navy-Sakko“), Vorlieben, Beispielschrank, leerer Schrank, Einkaufs-Check und Lücken
+- `tests/ui-smoke.js` braucht Playwright mit Chromium. Er läuft bei 400 px und 1000 px, jeweils hell und dunkel, mit 67 Prüfungen:
+  - Zeichnungen an jedem Outfit und Teil, fünf Stufen, Aktivitäten ohne Sport
+  - Live-Wetter (mit fester Testantwort, ohne Netz), Morgen, Plus/Minus, Wetterlage
+  - Business Formal und Casual, „Hochzeit“ hebt die Stufe, Wunschteil per Suche, Date mit Jogginghose
+  - Unterwegs & Stil, Würfeln, Bewerten, Tragen, Merken
+  - Teil anlegen, bearbeiten, suchen, löschen; Scan mit Foto, Einkaufs-Check, Kombinieren
+  - Mehr (Matrix, Staples, Kapsel, Wochenplan ohne doppeltes Oberteil, Tagebuch), Wetter-Ort, Export/Import, Löschen
   - kein horizontales Scrollen, keine Konsolenfehler
-  - mit Attrappen von `window.claude` zusätzlich die Erkennung per Claude (erfolgreich und abgelehnt) und den Konto-Speicher
+  - mit Attrappen von `window.claude` zusätzlich die Erkennung per Claude und den Konto-Speicher
 
   Screenshots landen in `shots/`. Ohne Screenshots: `SHOTS=0 node tests/ui-smoke.js`.
 
 ## Deployment
 
-### GitHub Pages (optional)
+### Raspberry Pi oder eigener Rechner
 
-`index.html` liegt im Wurzelverzeichnis und braucht keinen Build-Schritt auf dem Server.
+Die App ist eine statische Datei. Jeder Webserver reicht, zum Beispiel nginx:
+
+```bash
+sudo apt install -y nginx
+```
+
+```bash
+sudo cp index.html /var/www/html/index.html
+```
+
+Dann im Handy-Browser im selben WLAN `http://<IP-des-Pi>/` öffnen. Der Schrank liegt dabei im Browser des jeweiligen Geräts.
+
+### GitHub Pages (optional)
 
 1. Bring den Stand nach `main`, zum Beispiel per Pull Request aus `ankleide-v1`. Alternativ veröffentlichst du direkt den Branch.
 2. Öffne im Repository auf GitHub **Settings → Pages**.
-3. Wähle unter **Build and deployment** als Source **Deploy from a branch**, dann den Branch (`main` oder `ankleide-v1`) und den Ordner **/ (root)**. Speichere.
-4. Nach ein bis zwei Minuten ist die App unter `https://lennertdockweiler.github.io/Fitty/` erreichbar.
+3. Wähle unter **Build and deployment** als Source **Deploy from a branch**, dann den Branch und den Ordner **/ (root)**. Speichere.
+4. Nach ein bis zwei Minuten ist die App unter `https://lennertdockweiler.github.io/Fitty/` erreichbar. Über `https` funktioniert dort auch „Meinen Standort verwenden“.
 
-Die leere Datei `.nojekyll` sorgt dafür, dass GitHub die Dateien unverändert ausliefert. Nach jeder Änderung an den Quelldateien `node build.js` ausführen und die neue `index.html` mit committen.
+`.nojekyll` sorgt dafür, dass GitHub die Dateien unverändert ausliefert. Nach jeder Änderung `node build.js` ausführen und die neue `index.html` mit committen.
 
 ### Als Artifact in claude.ai
 
-`dist/artifact.html` wird als privates Artifact veröffentlicht, mit Titel „Ankleide“ und den Fähigkeiten `{db:{}, user:{}, sample:{images:true}}`. Dort speichert Ankleide im Konto und kann Fotos von Claude erkennen lassen. Beides fragt beim ersten Gebrauch um Erlaubnis. Ohne Freigabe läuft die App lokal und mit Eingabe per Hand weiter.
+`dist/artifact.html` wird als privates Artifact veröffentlicht, mit Titel „Ankleide“ und den Fähigkeiten `{db:{}, user:{}, sample:{images:true}}`. Dort speichert Ankleide im Konto, auf allen Geräten gleich, und Claude kann Fotos erkennen. Live-Wetter gibt es dort nicht.

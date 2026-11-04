@@ -1,27 +1,33 @@
 /* ===== Ankleide: Oberfläche, Teil 3 (Tab „Heute“) ===== */
-/* Annahme: typische Tageshöchstwerte in Konstanz je Monat als Startwert für die Temperatur */
+/* Annahme: typische Tageshöchstwerte in Konstanz je Monat als Startwert, solange kein Live-Wetter da ist */
 var MONTH_TEMP = [3, 5, 10, 14, 19, 22, 24, 24, 19, 14, 8, 4];
+var CONDS = [
+  { id: 'sonne', label: 'Sonnig', icon: 'sun' }, { id: 'wolken', label: 'Bewölkt', icon: 'cloud' },
+  { id: 'regen', label: 'Regen', icon: 'rain' }, { id: 'schnee', label: 'Schnee', icon: 'snow' }
+];
 
 function defaultCtx() {
   var t = MONTH_TEMP[new Date().getMonth()];
-  return { level: 2, temp: t, rain: false, snow: false, wind: false, sun: t >= 20, season: 'auto', transport: 'oepnv',
+  return { level: 2, temp: t, cond: t >= 20 ? 'sonne' : 'wolken', wind: false, day: 0, wxAuto: true, transport: 'oepnv',
     factors: [], activity: 'alltag', boldness: 1, onlyBasics: false, must: [], seed: 1 };
 }
 V.ctx = defaultCtx();
 V.avoid = [];
-V.preSportLevel = null;
 
-function seasonOf(c) { return c.season === 'auto' ? AK.seasonFor(c.temp, new Date().getMonth() + 1) : c.season; }
+function ctxDate(c) { return addDays(todayStr(), c.day || 0); }
+function seasonOf(c) { return AK.seasonFor(c.temp, Number(ctxDate(c).slice(5, 7))); }
+function weatherOf(c) { return { temp: c.temp, rain: c.cond === 'regen', snow: c.cond === 'schnee', wind: !!c.wind, sun: c.cond === 'sonne' }; }
 function engineCtx(c, over) {
   var x = {
-    level: c.level, weather: { temp: c.temp, rain: !!c.rain, snow: !!c.snow, wind: !!c.wind, sun: !!c.sun },
-    transport: c.transport, factors: c.factors.slice(), must: c.must.map(function (m) { return Object.assign({}, m); }),
-    boldness: c.boldness, onlyBasics: !!c.onlyBasics, seed: c.seed, today: todayStr(), activity: c.activity, season: seasonOf(c)
+    level: c.level, weather: weatherOf(c), transport: c.transport, factors: c.factors.slice(),
+    must: c.must.map(function (m) { return Object.assign({}, m); }), boldness: c.boldness, onlyBasics: !!c.onlyBasics,
+    seed: c.seed, today: ctxDate(c), activity: c.activity, season: seasonOf(c), pairs: prefPairs()
   };
   if (over) for (var k in over) x[k] = over[k];
   return x;
 }
-function isSportAct(id) { var a = AK.ACT[id] || {}; return a.level === 0; }
+function actRange(id) { var a = AK.ACT[id] || {}; return a.range || null; }
+function rangeText(r) { return r[0] === r[1] ? levelName(r[0]) : levelName(r[0]) + ' bis ' + levelName(r[1]); }
 function mustLabel(m) {
   if (m.kind === 'item') { var it = m.item || itemById(m.id); return it ? it.name : 'Teil'; }
   return typeLabel(m.type) + (m.color ? ' · ' + cname(m.color) : '');
@@ -38,7 +44,7 @@ function isWishedFor(ctx) {
     });
   };
 }
-/* Ein Wunsch je Slot (außer Accessoires): ein neuer Wunsch ersetzt den alten im selben Slot */
+/* Ein Wunsch je Bereich (außer Accessoires): ein neuer Wunsch ersetzt den alten im selben Bereich */
 function addMust(m) {
   var slot = mustSlot(m), replaced = null;
   V.ctx.must = V.ctx.must.filter(function (x) {
@@ -53,12 +59,73 @@ function addMust(m) {
 function hasMustItem(id) { return V.ctx.must.some(function (m) { return m.kind === 'item' && m.id === id; }); }
 function removeMust(i) { V.ctx.must.splice(i, 1); todayChanged(); }
 
-var TU = [], recalcTimer = null;
-function todayChanged(now) {
+/* ---------- Live-Wetter (nur eigenständige Fassung; im Artifact blockiert claude.ai externe Abrufe) ---------- */
+var WX = { state: 'idle', days: null, at: 0, place: null };
+var DEFAULT_PLACE = { name: 'Konstanz', lat: 47.6603, lon: 9.1758, region: 'Baden-Württemberg, Deutschland' };
+function wxEnabled() { return !IN_CLAUDE && typeof fetch === 'function' && S.settings.wxLive !== false; }
+function wxPlace() { var p = S.settings.wxPlace; return p && isFinite(p.lat) && isFinite(p.lon) ? p : DEFAULT_PLACE; }
+function wxCond(code, pop, snow) {
+  if ([71, 73, 75, 77, 85, 86].indexOf(code) >= 0 || snow > 0.5) return 'schnee';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95 || pop >= 60) return 'regen';
+  if (code <= 1) return 'sonne';
+  return 'wolken';
+}
+function wxParse(d) {
+  var D = d.daily, out = [];
+  for (var i = 0; i < Math.min(2, D.time.length); i++) {
+    out.push({ date: D.time[i], tmax: Math.round(D.temperature_2m_max[i]), tmin: Math.round(D.temperature_2m_min[i]),
+      cond: wxCond(D.weather_code[i], (D.precipitation_probability_max || [])[i] || 0, (D.snowfall_sum || [])[i] || 0),
+      wind: ((D.wind_speed_10m_max || [])[i] || 0) >= 28, pop: (D.precipitation_probability_max || [])[i] || 0 });
+  }
+  return out;
+}
+function wxLoad(force) {
+  if (!wxEnabled()) { WX.state = 'off'; return; }
+  var pl = wxPlace(), key = pl.lat.toFixed(3) + ',' + pl.lon.toFixed(3);
+  if (!force) {
+    try {
+      var c = JSON.parse(localStorage.getItem('ankleide.wx') || 'null');
+      if (c && c.key === key && Date.now() - c.at < 30 * 60000 && c.days && c.days[0].date === todayStr()) {
+        WX.state = 'ok'; WX.days = c.days; WX.at = c.at; WX.place = pl; wxApply(); return;
+      }
+    } catch (e) {}
+  }
+  WX.state = 'loading'; wxRender();
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + pl.lat + '&longitude=' + pl.lon +
+    '&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,snowfall_sum,wind_speed_10m_max&timezone=auto&forecast_days=2';
+  fetch(url).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(function (d) {
+    WX.days = wxParse(d); WX.at = Date.now(); WX.place = pl; WX.state = 'ok';
+    try { localStorage.setItem('ankleide.wx', JSON.stringify({ key: key, at: WX.at, days: WX.days })); } catch (e) {}
+    if (force) V.ctx.wxAuto = true;
+    wxApply();
+  }).catch(function () { WX.state = 'error'; wxRender(); });
+}
+function wxApply() {
+  var c = V.ctx, d = WX.days && WX.days[c.day || 0];
+  if (d && c.wxAuto) {
+    var changedW = c.temp !== d.tmax || c.cond !== d.cond || c.wind !== d.wind;
+    c.temp = d.tmax; c.cond = d.cond; c.wind = d.wind;
+    if (changedW && TU.length) { todayChanged(false, true); return; }
+  }
+  wxRender();
+}
+var wxRender = function () {};
+
+var TU = [], recalcTimer = null, jumpTimer = null;
+function todayChanged(now, quiet) {
   V.avoid = [];
   TU.forEach(function (f) { f(); });
   clearTimeout(recalcTimer);
-  if (now) recalc(); else recalcTimer = setTimeout(recalc, 120);
+  if (now) recalc(); else recalcTimer = setTimeout(function () { recalc(); if (!quiet) showJump(); }, 120);
+}
+/* Zeigt kurz „Vorschläge ansehen“, wenn die Vorschläge gerade nicht im Blick sind */
+function showJump() {
+  var res = $('today-results'), j = $('jump');
+  if (!res || !j || V.tab !== 'today') return;
+  var r = res.getBoundingClientRect();
+  if (r.top < window.innerHeight - 140) { j.hidden = true; return; }
+  j.hidden = false; clearTimeout(jumpTimer);
+  jumpTimer = setTimeout(function () { j.hidden = true; }, 4500);
 }
 
 registerPanel('today', {
@@ -67,75 +134,83 @@ registerPanel('today', {
     var c = V.ctx;
     var banner = demoBanner(); TU.push(banner.upd);
 
-    /* Dresscode als Maßband */
-    var tape = h('div', { class: 'tape', role: 'group', 'aria-label': 'Dresscode-Stufe' });
-    AK.LEVELS.forEach(function (lv) {
-      tape.append(h('button', { type: 'button', 'aria-pressed': 'false', 'aria-label': 'Stufe ' + lv.id + ': ' + lv.name,
-        onclick: function () { c.level = lv.id; if (!isSportAct(c.activity)) V.preSportLevel = null; todayChanged(); } },
-        h('span', { class: 'n' }, lv.id), h('span', { class: 'l' }, SHORT[lv.id])));
+    /* Anlass: Dresscode als Maßband plus Aktivität */
+    var tape = h('div', { class: 'tape t5', role: 'group', 'aria-label': 'Dresscode' });
+    LV.forEach(function (L) {
+      tape.append(h('button', { type: 'button', 'aria-pressed': 'false', 'data-l': String(L), 'aria-label': levelName(L),
+        onclick: function () { c.level = L; todayChanged(); } },
+        h('span', { class: 'n' }, L), h('span', { class: 'l' }, AK.LEVEL_SHORT[L])));
     });
     var lvName = h('div', { class: 'lvl-name' }), lvHint = h('div', { class: 'muted small lvl-hint' });
-    TU.push(function () {
-      Array.prototype.forEach.call(tape.children, function (b, i) { b.setAttribute('aria-pressed', i === c.level ? 'true' : 'false'); });
-      lvName.textContent = levelName(c.level);
-      lvHint.textContent = AK.LEVELS[c.level].hint;
-    });
-
-    /* Wetter */
-    var presets = h('div', { class: 'chips', role: 'group', 'aria-label': 'Wetter-Vorlagen' });
-    AK.WEATHER_PRESETS.forEach(function (w) {
-      presets.append(h('button', { class: 'chip', type: 'button', 'aria-pressed': 'false', onclick: function () {
-        c.temp = w.temp; c.rain = w.rain; c.snow = w.snow; c.wind = w.wind; c.sun = w.sun; todayChanged();
-      } }, w.name, h('span', { class: 'ct' }, fmtT(w.temp))));
-    });
-    var tempOut = h('output', { class: 'temp', for: 'today-temp', id: 'today-temp-out' });
-    var range = h('input', { type: 'range', id: 'today-temp', min: '-10', max: '38', step: '1', 'aria-label': 'Temperatur in Grad Celsius' });
-    range.value = String(c.temp);
-    range.addEventListener('input', function () { c.temp = Number(range.value); tempOut.textContent = fmtT(c.temp); updFeels(); updPresets(); });
-    range.addEventListener('change', function () { c.temp = Number(range.value); todayChanged(); });
-    var feels = h('div', { class: 'mono feels' });
-    function updFeels() {
-      var t = AK._int.effTemp(engineCtx(c));
-      feels.textContent = 'Gefühlt ' + fmtT(t) + ' · ' + seasonName(seasonOf(c));
-    }
-    function updPresets() {
-      Array.prototype.forEach.call(presets.children, function (b, i) {
-        var w = AK.WEATHER_PRESETS[i];
-        b.setAttribute('aria-pressed', (w.temp === c.temp && w.rain === !!c.rain && w.snow === !!c.snow && w.wind === !!c.wind && w.sun === !!c.sun) ? 'true' : 'false');
-      });
-    }
-    var wx = chipGroup([{ id: 'rain', label: 'Regen' }, { id: 'snow', label: 'Schnee' }, { id: 'wind', label: 'Wind' }, { id: 'sun', label: 'Sonnig' }],
-      function (k) { return !!c[k]; }, function (k) { c[k] = !c[k]; todayChanged(); }, 'Wetterlage');
-    var seasonBtns = chipGroup([{ id: 'auto', label: 'Auto' }].concat(AK.SEASONS.map(function (s) { return { id: s.id, label: s.name }; })),
-      function (k) { return c.season === k; }, function (k) { c.season = k; todayChanged(); }, 'Jahreszeit');
-    var autoBtn = seasonBtns.firstChild;
-    TU.push(function () {
-      range.value = String(c.temp); tempOut.textContent = fmtT(c.temp);
-      updFeels(); updPresets(); wx.upd(); seasonBtns.upd();
-      autoBtn.firstChild.textContent = 'Auto (' + seasonName(AK.seasonFor(c.temp, new Date().getMonth() + 1)) + ')';
-    });
-
-    /* Unterwegs */
-    var trans = seg(AK.TRANSPORT.map(function (t) { return { id: t.id, label: t.name }; }), function () { return c.transport; },
-      function (v) { c.transport = v; todayChanged(); }, 'Fortbewegung');
-    var actSel = h('select', { id: 'today-activity', 'aria-label': 'Aktivität' });
-    AK.ACTIVITIES.forEach(function (a) { actSel.append(h('option', { value: a.id }, a.name + (a.level === 0 ? ' (Sport)' : ''))); });
+    var actSel = h('select', { id: 'today-activity' });
+    AK.ACTIVITIES.forEach(function (a) { actSel.append(h('option', { value: a.id }, a.name)); });
+    var actHint = h('div', { class: 'muted small' });
     actSel.addEventListener('change', function () {
-      var was = c.activity; c.activity = actSel.value;
-      if (isSportAct(c.activity) && !isSportAct(was)) { V.preSportLevel = c.level; c.level = 0; toast('Für ' + actName(c.activity) + ' stelle ich auf „Sportlich“.'); }
-      else if (!isSportAct(c.activity) && isSportAct(was) && V.preSportLevel != null) { c.level = V.preSportLevel; V.preSportLevel = null; }
+      c.activity = actSel.value;
+      var r = actRange(c.activity);
+      if (r && (c.level < r[0] || c.level > r[1])) {
+        var to = c.level < r[0] ? r[0] : r[1];
+        toast('Für ' + actName(c.activity) + ' passt ' + rangeText(r) + '. Ich stelle auf ' + levelName(to) + '.');
+        c.level = to;
+      }
       todayChanged();
     });
-    var factors = chipGroup(AK.FACTORS.map(function (f) { return { id: f.id, label: f.name }; }),
-      function (k) { return c.factors.indexOf(k) >= 0; },
-      function (k) { var i = c.factors.indexOf(k); if (i >= 0) c.factors.splice(i, 1); else c.factors.push(k); todayChanged(); }, 'Weitere Faktoren');
-    TU.push(function () { trans.upd(); actSel.value = c.activity; factors.upd(); });
+    TU.push(function () {
+      Array.prototype.forEach.call(tape.children, function (b) { b.setAttribute('aria-pressed', Number(b.getAttribute('data-l')) === c.level ? 'true' : 'false'); });
+      lvName.textContent = levelName(c.level);
+      lvHint.textContent = AK.LEVELS[c.level].hint;
+      actSel.value = c.activity;
+      var r = actRange(c.activity);
+      actHint.textContent = r ? 'Üblich: ' + rangeText(r) + '.' : '';
+      actHint.hidden = !r;
+    });
 
-    /* Stil */
-    var bold = seg([{ id: 0, label: 'Sicher' }, { id: 1, label: 'Ausgewogen' }, { id: 2, label: 'Mutig' }], function () { return c.boldness; },
-      function (v) { c.boldness = v; todayChanged(); }, 'Farbmut');
-    var basics = checkbox('today-basics', 'Nur Basics', function () { return c.onlyBasics; }, function (v) { c.onlyBasics = v; todayChanged(); });
-    TU.push(function () { bold.upd(); basics.upd(); });
+    /* Wetter: Tag, Temperatur, Wetterlage, Wind */
+    var day = seg([{ id: 0, label: 'Heute' }, { id: 1, label: 'Morgen' }], function () { return c.day; },
+      function (v) { c.day = v; if (WX.days) { c.wxAuto = true; var d = WX.days[v]; if (d) { c.temp = d.tmax; c.cond = d.cond; c.wind = d.wind; } } todayChanged(); }, 'Für welchen Tag');
+    day.classList.add('day-seg');
+    var tempOut = h('output', { class: 'temp', id: 'today-temp-out', for: 'today-temp' });
+    var range = h('input', { type: 'range', id: 'today-temp', min: '-10', max: '38', step: '1', 'aria-label': 'Temperatur tagsüber in Grad Celsius' });
+    function manual() { c.wxAuto = false; }
+    function setTemp(t) { c.temp = Math.max(-10, Math.min(38, t)); manual(); todayChanged(); }
+    range.addEventListener('input', function () { c.temp = Number(range.value); tempOut.textContent = fmtT(c.temp); });
+    range.addEventListener('change', function () { setTemp(Number(range.value)); });
+    var minus = h('button', { class: 'btn ghost icon', type: 'button', 'aria-label': 'Ein Grad kälter', onclick: function () { setTemp(c.temp - 1); } }, ico('minus'));
+    var plus = h('button', { class: 'btn ghost icon', type: 'button', 'aria-label': 'Ein Grad wärmer', onclick: function () { setTemp(c.temp + 1); } }, ico('plus'));
+    var conds = h('div', { class: 'conds', role: 'group', 'aria-label': 'Wetterlage' });
+    CONDS.forEach(function (w) {
+      conds.append(h('button', { class: 'cond', type: 'button', 'data-v': w.id, 'aria-pressed': 'false', onclick: function () { c.cond = w.id; manual(); todayChanged(); } },
+        ico(w.icon), h('span', null, w.label)));
+    });
+    var windBtn = h('button', { class: 'cond', type: 'button', id: 'today-wind', 'aria-pressed': 'false', onclick: function () { c.wind = !c.wind; manual(); todayChanged(); } }, ico('wind'), h('span', null, 'Windig'));
+    conds.append(windBtn);
+    var feels = h('div', { class: 'mono feels' });
+    var live = h('div', { class: 'wxline' });
+    wxRender = function () {
+      clear(live);
+      if (!wxEnabled()) {
+        live.append(h('span', { class: 'muted small' }, IN_CLAUDE ? 'Stell das Wetter hier selbst ein. Live-Wetter gibt es in der eigenständigen Fassung.' : 'Live-Wetter ist ausgeschaltet (Mehr → Einstellungen).'));
+        return;
+      }
+      var pl = wxPlace(), d = WX.days && WX.days[c.day || 0];
+      var info = h('span', { class: 'small' }, ico('pin'), h('b', null, pl.name), ' ');
+      if (WX.state === 'loading') info.append(h('span', { class: 'muted' }, 'Wetter wird geladen …'));
+      else if (WX.state === 'error') info.append(h('span', { class: 'warn-t' }, 'Wetter nicht abrufbar (offline?). Stell es selbst ein.'));
+      else if (d) {
+        info.append(h('span', { class: 'muted' }, (c.day ? 'Morgen ' : 'Heute ') + fmtT(d.tmax) + ' / ' + fmtT(d.tmin) + (d.pop >= 30 ? ' · Regen ' + d.pop + ' %' : '')));
+        if (!c.wxAuto) info.append(h('span', { class: 'muted' }, ' · eigene Angabe'));
+      }
+      live.append(info, h('button', { class: 'btn ghost small', type: 'button', id: 'wx-reload', onclick: function () { wxLoad(true); } }, ico('refresh'), c.wxAuto || !WX.days ? 'Neu laden' : 'Live-Wetter nehmen'));
+    };
+    TU.push(function () {
+      day.upd();
+      range.value = String(c.temp); tempOut.textContent = fmtT(c.temp);
+      Array.prototype.forEach.call(conds.querySelectorAll('[data-v]'), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === c.cond ? 'true' : 'false'); });
+      windBtn.setAttribute('aria-pressed', c.wind ? 'true' : 'false');
+      var t = AK._int.effTemp(engineCtx(c));
+      feels.textContent = 'Gefühlt ' + fmtT(t) + ' · ' + seasonName(seasonOf(c)) + (c.day ? ' · ' + deDate(ctxDate(c)) : '');
+      wxRender();
+    });
 
     /* Das soll rein */
     var mustBox = h('div', { class: 'chips' });
@@ -149,28 +224,50 @@ registerPanel('today', {
           h('button', { type: 'button', 'aria-label': lbl + ' entfernen', onclick: function () { removeMust(i); } }, ico('x'))));
       });
     });
-    var addMustBtn = h('button', { class: 'btn ghost', type: 'button', onclick: openMustSheet }, ico('plus'), 'Wunschteil wählen');
+    var addMustBtn = h('button', { class: 'btn ghost', type: 'button', id: 'btn-must', onclick: openMustSheet }, ico('plus'), 'Wunschteil wählen');
 
-    /* Aktionen und Ergebnis */
+    /* Unterwegs und Stil, eingeklappt */
+    var trans = seg(AK.TRANSPORT.map(function (t) { return { id: t.id, label: t.name }; }), function () { return c.transport; },
+      function (v) { c.transport = v; todayChanged(); }, 'Fortbewegung');
+    var factors = chipGroup(AK.FACTORS.map(function (f) { return { id: f.id, label: f.name }; }),
+      function (k) { return c.factors.indexOf(k) >= 0; },
+      function (k) { var i = c.factors.indexOf(k); if (i >= 0) c.factors.splice(i, 1); else c.factors.push(k); todayChanged(); }, 'Weitere Faktoren');
+    var bold = seg([{ id: 0, label: 'Sicher' }, { id: 1, label: 'Ausgewogen' }, { id: 2, label: 'Mutig' }], function () { return c.boldness; },
+      function (v) { c.boldness = v; todayChanged(); }, 'Farbmut');
+    var basics = checkbox('today-basics', 'Nur Basics', function () { return c.onlyBasics; }, function (v) { c.onlyBasics = v; todayChanged(); });
+    var moreSum = h('span', { class: 'muted small' });
+    var more = h('details', { class: 'sec more-opts', id: 'today-more' },
+      h('summary', null, h('span', { class: 'mono' }, 'Unterwegs & Stil'), moreSum),
+      h('div', { class: 'stack' },
+        h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Fortbewegung'), trans),
+        h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Außerdem'), factors),
+        h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Farbmut'), bold), basics));
+    TU.push(function () {
+      trans.upd(); factors.upd(); bold.upd(); basics.upd();
+      var bits = [trName(c.transport), ['Sicher', 'Ausgewogen', 'Mutig'][c.boldness]];
+      if (c.factors.length) bits.push(c.factors.length + ' Faktor' + (c.factors.length > 1 ? 'en' : ''));
+      if (c.onlyBasics) bits.push('nur Basics');
+      moreSum.textContent = bits.join(' · ');
+    });
+
     var res = h('div', { class: 'results stack', id: 'today-results', 'aria-live': 'polite' });
-    var go = h('button', { class: 'btn accent block', type: 'button', id: 'btn-suggest', onclick: function () { recalc(); scrollToEl(res); } }, 'Outfits vorschlagen');
-    var again = h('button', { class: 'btn ghost block', type: 'button', id: 'btn-reroll', onclick: reroll }, ico('dice'), 'Nochmal würfeln');
+    var jump = h('button', { class: 'jump', id: 'jump', type: 'button', hidden: true, onclick: function () { jump.hidden = true; scrollToEl(res); } }, 'Vorschläge ansehen', ico('down'));
 
     p.append(banner, h('div', { class: 'today-form' },
-      sec('Anlass · Dresscode', h('div', null, tape, lvName, lvHint)),
-      sec('Wetter', h('div', { class: 'stack' }, presets,
-        h('div', { class: 'tempbox' }, tempOut, h('div', null, range, h('div', { class: 'range-scale mono', 'aria-hidden': 'true' }, h('span', null, '−10'), h('span', null, '14'), h('span', null, '38'))), feels),
-        wx, h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Jahreszeit'), seasonBtns))),
-      sec('Unterwegs', h('div', { class: 'stack' }, trans,
-        h('label', { class: 'field', for: 'today-activity' }, h('span', null, 'Aktivität'), actSel), factors)),
-      sec('Stil', h('div', { class: 'stack' }, bold, basics)),
+      sec('Anlass', h('div', { class: 'stack', style: 'gap:10px' },
+        h('div', null, tape, lvName, lvHint),
+        h('label', { class: 'field', for: 'today-activity' }, h('span', null, 'Was hast du vor?'), actSel), actHint)),
+      h('section', { class: 'sec' }, h('div', { class: 'res-head' }, h('h2', { class: 'mono' }, 'Wetter'), day),
+        h('div', { class: 'stack', style: 'gap:10px' },
+          h('div', { class: 'tempbox2' }, minus, tempOut, plus, h('div', { class: 'grow' }, range)),
+          conds, feels, live)),
       sec('Das soll rein', h('div', { class: 'stack' }, mustBox, h('div', null, addMustBtn))),
-      h('div', { class: 'sec stack' }, go, again)),
-      h('div', { class: 'today-res sec' }, res)
-    );
+      more),
+      h('div', { class: 'today-res sec' }, res), jump);
     TU.forEach(function (f) { f(); });
     if (S.ready) recalc();
     else res.append(h('div', { class: 'empty' }, 'Dein Schrank wird geladen …'));
+    wxLoad(false);
   },
   refresh: function () {
     TU.forEach(function (f) { f(); });
@@ -185,7 +282,6 @@ function reroll() {
   }
   V.ctx.seed++;
   recalc(true);
-  scrollToEl($('today-results'));
 }
 
 function recalc(keepAvoid) {
@@ -207,20 +303,21 @@ function recalc(keepAvoid) {
     return;
   }
   var ctx = engineCtx(V.ctx);
-  var r = AK.suggest(W, ctx, { n: 3, cap: 8, avoid: V.avoid });
+  var avoid = V.avoid.concat(prefAvoid());
+  var r = AK.suggest(W, ctx, { n: 3, cap: 8, avoid: avoid });
   if (!r.missing && !r.outfits.length && V.avoid.length) {
     V.avoid = [];
-    r = AK.suggest(W, ctx, { n: 3, cap: 8 });
+    r = AK.suggest(W, ctx, { n: 3, cap: 8, avoid: prefAvoid() });
     toast('Alle Varianten gezeigt. Es geht wieder von vorn los.');
   }
   V.results = { res: r, ctx: ctx };
-  var summary = [levelName(ctx.level), fmtT(ctx.weather.temp)];
-  ['rain', 'snow', 'wind', 'sun'].forEach(function (k) { if (ctx.weather[k]) summary.push({ rain: 'Regen', snow: 'Schnee', wind: 'Wind', sun: 'Sonne' }[k]); });
-  summary.push(trName(ctx.transport));
+  var summary = [levelName(ctx.level), fmtT(ctx.weather.temp), (CONDS.filter(function (x) { return x.id === V.ctx.cond; })[0] || {}).label];
+  if (ctx.weather.wind) summary.push('windig');
+  if (V.ctx.day) summary.push('morgen');
   if (ctx.activity && ctx.activity !== 'alltag') summary.push(actName(ctx.activity));
   box.append(h('div', { class: 'res-head' }, h('h2', { class: 'mono' }, 'Vorschläge'),
-    h('span', { class: 'mono' }, r.total ? fmtN(r.total) + ' Kombinationen geprüft' : '')));
-  box.append(h('div', { class: 'small muted' }, summary.join(' · ') + (isDemo() ? ' · aus dem Beispielschrank' : '')));
+    h('button', { class: 'btn ghost small', type: 'button', id: 'btn-reroll', onclick: reroll }, ico('dice'), 'Nochmal würfeln')));
+  box.append(h('div', { class: 'small muted' }, summary.filter(Boolean).join(' · ') + (r.total ? ' · ' + fmtN(r.total) + ' Kombinationen geprüft' : '') + (isDemo() ? ' · Beispielschrank' : '')));
   if (r.missing) {
     box.append(h('div', { class: 'card stack' },
       h('b', null, 'Dir fehlen noch: ' + r.missing.join(', ') + '.'),
@@ -238,29 +335,33 @@ function recalc(keepAvoid) {
   r.outfits.forEach(function (o, i) { box.append(outfitCard(o, { i: i, ctx: ctx, actions: true, wished: wished })); });
 }
 
-/* Sheet „Das soll rein“: bestimmtes Teil oder Art (optional mit Farbe) */
+/* Sheet „Das soll rein“: bestimmtes Teil oder Art (optional mit Farbe), beides durchsuchbar */
 function openMustSheet() {
   openSheet('Das soll rein', function (body, close) {
-    var mode = 'item';
+    var mode = 'item', q = '';
     var tabs = seg([{ id: 'item', label: 'Bestimmtes Teil' }, { id: 'type', label: 'Art' }], function () { return mode; },
       function (v) { mode = v; draw(); }, 'Art des Wunsches');
+    var search = h('input', { type: 'search', id: 'must-q', placeholder: 'Suchen, z. B. „blau Hemd“', autocomplete: 'off', 'aria-label': 'Teile durchsuchen' });
+    search.addEventListener('input', function () { q = search.value; draw(); });
     var box = h('div', { class: 'stack' });
-    body.append(tabs, box, h('div', { class: 'foot' }, h('button', { class: 'btn accent block', type: 'button', onclick: close }, 'Fertig')));
+    body.append(tabs, h('div', { class: 'searchbox' }, ico('search'), search), box,
+      h('div', { class: 'foot' }, h('button', { class: 'btn accent block', type: 'button', onclick: close }, 'Fertig')));
     function draw() {
       clear(box);
       if (mode === 'item') drawItems(); else drawTypes();
     }
     function drawItems() {
-      var W = wardrobe().filter(function (x) { return !x.never; });
-      if (!W.length) { box.append(h('div', { class: 'empty' }, 'Noch keine Teile im Schrank.')); return; }
+      var W = wardrobe().filter(function (x) { return !x.never && matchItem(x, q); });
+      if (!wardrobe().length) { box.append(h('div', { class: 'empty' }, 'Noch keine Teile im Schrank.')); return; }
+      if (!W.length) { box.append(h('div', { class: 'empty' }, 'Nichts gefunden für „' + q + '“.')); return; }
       AK.SLOTS.forEach(function (sl) {
         var list = W.filter(function (x) { return x.slot === sl.id; });
         if (!list.length) return;
         var g = h('div', { class: 'picks' });
         list.forEach(function (it) {
-          var b = h('button', { class: 'pick', type: 'button', 'aria-pressed': hasMustItem(it.id) ? 'true' : 'false' },
+          var b = h('button', { class: 'pick', type: 'button', 'aria-pressed': 'false' },
             thumbEl(it, { size: 'sm' }),
-            h('span', { class: 'pn' }, it.name, h('small', null, typeLabel(it.type) + (it.avail === false ? ' · in der Wäsche' : ''))),
+            h('span', { class: 'pn' }, it.name, h('small', null, typeLabel(it.type) + ' · ' + cname(it.color) + (it.avail === false ? ' · in der Wäsche' : ''))),
             h('span', { class: 'ck' }));
           function mark() {
             var on = hasMustItem(it.id);
@@ -280,22 +381,28 @@ function openMustSheet() {
       });
     }
     function drawTypes() {
-      var W = wardrobe();
+      var W = wardrobe(), qq = normQ(q).trim();
       var chosen = null, color = '';
       var detail = h('div', { class: 'stack' });
       box.append(h('p', { class: 'muted small', style: 'margin:0' }, 'Zum Beispiel „eine Jeans“ oder „ein Sakko in Navy“. Ankleide nimmt das passendste Teil dieser Art.'));
+      var any = false;
       AK.SLOTS.forEach(function (sl) {
-        var types = Object.keys(AK.TYPES).filter(function (k) { return AK.TYPES[k].slot === sl.id; });
+        var types = Object.keys(AK.TYPES).filter(function (k) {
+          if (AK.TYPES[k].slot !== sl.id || k === 'smoking' || k === 'fliege') return false;
+          return !qq || qq.split(/\s+/).every(function (t) { return normQ(AK.TYPES[k].label + ' ' + k + ' ' + (TYPE_SYN[k] || '') + ' ' + sl.name).indexOf(t) >= 0; });
+        });
+        if (!types.length) return;
+        any = true;
         var g = h('div', { class: 'chips', role: 'group', 'aria-label': sl.name });
         types.forEach(function (k) {
           var n = W.filter(function (x) { return x.type === k && !x.never; }).length;
-          var b = h('button', { class: 'chip' + (n ? '' : ' dim'), type: 'button', 'aria-pressed': 'false', 'data-k': k,
+          g.append(h('button', { class: 'chip' + (n ? '' : ' dim'), type: 'button', 'aria-pressed': 'false', 'data-k': k,
             onclick: function () { chosen = k; color = ''; Array.prototype.forEach.call(box.querySelectorAll('[data-k]'), function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-k') === k ? 'true' : 'false'); }); drawDetail(); } },
-            AK.TYPES[k].label, h('span', { class: 'ct' }, n));
-          g.append(b);
+            AK.TYPES[k].label, h('span', { class: 'ct' }, n)));
         });
         box.append(h('div', { class: 'stack', style: 'gap:6px' }, h('h3', { class: 'mono' }, sl.name), g));
       });
+      if (!any) box.append(h('div', { class: 'empty' }, 'Keine Art passt zu „' + q + '“.'));
       box.append(detail);
       function drawDetail() {
         clear(detail);
@@ -322,6 +429,7 @@ function openMustSheet() {
             todayChanged(); close();
           } }, ico('plus'), 'Als Wunsch hinzufügen')));
         upd();
+        scrollToEl(detail);
       }
     }
     draw();
