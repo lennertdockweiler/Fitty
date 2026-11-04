@@ -40,8 +40,16 @@
   AK.capsule = function (W, o) {
     o = o || {};
     var days = Math.max(1, Math.min(21, o.days || 3)), luggage = o.luggage || 'hand';
-    var av = usable(W);
     var levels = (o.levels && o.levels.length) ? o.levels : [2, 3];
+    // Reine Sportteile (a = 2, fmax <= 1) nur einpacken, wenn Sport geplant ist:
+    // Sport-Aktivität oder Stufe „Sportlich“; beim Wandern nur wandertaugliche (z. B. Laufschuhe).
+    var act = AK.ACT[o.activity] || {};
+    var sporty = !!act.sport || levels.indexOf(0) >= 0;
+    var av = usable(W).filter(function (x) {
+      if (!((x.a || 0) >= 2 && x.fmax <= 1)) return true;
+      if (sporty) return true;
+      return !!(act.hike && (AK.TYPES[x.type] || {}).hike);
+    });
     var tday = o.temp != null ? o.temp : 16, rain = !!o.rain;
     var weathers = [
       { temp: tday, rain: false, snow: false, wind: false, sun: tday >= 20 },

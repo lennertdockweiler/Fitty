@@ -41,7 +41,8 @@
     }
     // Gürtel
     var belted = ['jeans', 'chino', 'stoff', 'anzughose', 'cargo'].indexOf(c.bottom.type) >= 0;
-    if (belted && L >= 2 && !kindTaken('belt')) {
+    // Zum Smoking (Black Tie) gehört kein Gürtel
+    if (belted && L >= 2 && L < 6 && !kindTaken('belt')) {
       var sf = leatherFam(c.shoes.color);
       var belts = pickAcc(pool, 'belt', ctx, function (x) { return sf === 'other' ? true : leatherFam(x.color) === sf; });
       if (belts.length && (sf === 'other' || leatherFam(belts[0].color) === sf)) addAcc(belts[0]);
@@ -93,7 +94,7 @@
     /* ---- Begründungen ---- */
     var main = ['top', 'mid', 'outer', 'bottom', 'shoes'].map(function (k) { return out[k]; }).filter(Boolean);
     function isWished(x) {
-      return (ctx.must || []).some(function (m) { return (m.kind === 'item' && (m.id === x.id || (m.item && m.item.id === x.id))) || (m.kind === 'type' && m.type === x.type); });
+      return (ctx.must || []).some(function (m) { return (m.kind === 'item' && (m.id === x.id || (m.item && m.item.id === x.id))) || (m.kind === 'type' && m.type === x.type && (!m.color || m.color === x.color)); });
     }
     var off = main.filter(function (x) { return I.dist(x, L) > 0; });
     if (!off.length) notes.push('Alle Teile passen zu „' + AK.LEVELS[L].name + '“.');

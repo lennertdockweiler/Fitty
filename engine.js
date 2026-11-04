@@ -141,8 +141,13 @@
         var it = m.item || W.filter(function (x) { return x.id === m.id; })[0];
         if (it) list = [it];
       } else if (m.kind === 'type') {
-        list = W.filter(function (x) { return x.type === m.type && x.avail !== false && !x.never; });
-        if (!list.length) { warns.push('Du hast kein Teil vom Typ ' + (AK.TYPES[m.type] ? AK.TYPES[m.type].label : m.type) + ' im Schrank.'); return; }
+        // optional mit Farbe, z. B. „ein Navy-Sakko“: {kind:'type', type:'sakko', color:'navy'}
+        list = W.filter(function (x) { return x.type === m.type && (!m.color || x.color === m.color) && x.avail !== false && !x.never; });
+        if (!list.length) {
+          var cn = m.color ? (AK.COLORS.filter(function (c) { return c.id === m.color; })[0] || { name: m.color }).name : '';
+          warns.push('Du hast kein Teil vom Typ ' + (AK.TYPES[m.type] ? AK.TYPES[m.type].label : m.type) + (cn ? ' in ' + cn : '') + ' im Schrank.');
+          return;
+        }
       }
       if (!list.length) return;
       var slot = list[0].slot;
@@ -185,7 +190,8 @@
     var relaxed = {};
     function candidates(slot, optional) {
       if (forced[slot]) {
-        return forced[slot].slice(0, 1).map(function (x) { return x; });
+        // Wunsch nach einer Art: alle passenden Teile zulassen, das beste zuerst
+        return forced[slot].slice().sort(function (a, b) { return E.is[b.id] - E.is[a.id]; }).slice(0, cap);
       }
       var base = pool.filter(function (x) { return x.slot === slot; });
       var list = base.filter(function (x) { return dist(x, ctx.level) <= 1; });
