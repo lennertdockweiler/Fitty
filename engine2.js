@@ -56,6 +56,7 @@
       } else if (L === 5 && !kindTaken('tie')) {
         var ties = pickAcc(pool, 'tie', ctx, function (x) { return x.color !== c.top.color && (c.top.pattern === 'uni' || x.pattern === 'uni'); });
         if (ties.length) addAcc(ties[0]);
+        else softs.push('Zu ' + AK.LEVELS[5].name + ' gehört eine Krawatte, im Schrank ist keine.');
       }
       if (L >= 5 && !kindTaken('pocket')) {
         var pk = pickAcc(pool, 'pocket', ctx);
@@ -144,6 +145,8 @@
     if (wished.length) notes.unshift('Wunschteile drin: ' + wished.map(function (x) { return x.name; }).join(', ') + '.');
     var favs = main.filter(function (x) { return x.fav; });
     if (favs.length) notes.push('Mit Lieblingsteil: ' + favs.map(function (x) { return x.name; }).join(', ') + '.');
+    if (combo.aff >= 0.06) notes.unshift('Passt zu dem, was dir bisher gefallen hat.');
+    else if (combo.aff <= -0.09) softs.push('Ähnliche Kombinationen fandest du weniger gut.');
 
     return {
       items: out, score: Math.min(99, Math.max(5, Math.round((combo.total - 0.25) / 0.9 * 100))),
@@ -179,7 +182,9 @@
       { temp: 25, rain: false, snow: false, wind: false, sun: true }
     ];
     var byLevel = {}, n = 0, seen = {}, partnerCount = {};
-    for (var L = it.fmin; L <= it.fmax; L++) {
+    var lo = it.fmin, hi = it.fmax;
+    if (AK.UI_LEVELS) { lo = Math.max(lo, AK.UI_LEVELS[0]); hi = Math.min(hi, AK.UI_LEVELS[AK.UI_LEVELS.length - 1]); }
+    for (var L = lo; L <= hi; L++) {
       byLevel[L] = 0;
       weathers.forEach(function (wt) {
         var ctx = { level: L, weather: wt, transport: 'oepnv', factors: [], must: [{ kind: 'item', item: it }], boldness: 1, seed: 1, today: today };
@@ -205,7 +210,7 @@
   };
 
   /* Lückenanalyse: Basics-Checkliste und Abdeckung nach Anlass und Wetter */
-  AK.gaps = function (W, today) {
+  AK.gaps = function (W, today, levelIds) {
     var av = W.filter(function (x) { return x.avail !== false && !x.never; });
     function any(f) { return av.some(f); }
     var dark = ['indigo', 'navy', 'schwarz', 'anthrazit'];
@@ -219,7 +224,7 @@
       { id: 'strick', name: 'Pullover oder Feinstrick in Neutral', why: 'Mittlere Schicht für kühle Tage.', have: any(function (x) { return (x.type === 'pullover' || x.type === 'feinstrick') && I.fam(x.color) === 'neutral'; }) },
       { id: 'sneaker', name: 'Weiße Sneaker', why: 'Funktionieren zu fast allem unter Business.', have: any(function (x) { return x.type === 'sneaker' && x.color === 'weiss'; }) },
       { id: 'leder-b', name: 'Braune Lederschuhe', why: 'Für Smart Casual und Business Casual.', have: any(function (x) { return ['chelsea', 'loafer', 'derby', 'oxford', 'boots'].indexOf(x.type) >= 0 && x.color === 'braun'; }) },
-      { id: 'leder-s', name: 'Schwarze Lederschuhe', why: 'Pflicht für Anzug und Black Tie.', have: any(function (x) { return ['chelsea', 'loafer', 'derby', 'oxford'].indexOf(x.type) >= 0 && x.color === 'schwarz'; }) },
+      { id: 'leder-s', name: 'Schwarze Lederschuhe', why: 'Pflicht zum Anzug.', have: any(function (x) { return ['chelsea', 'loafer', 'derby', 'oxford'].indexOf(x.type) >= 0 && x.color === 'schwarz'; }) },
       { id: 'regen', name: 'Regenjacke', why: 'Für Rad, Bahn und Spaziergang bei Regen.', have: any(function (x) { return x.slot === 'outer' && x.water && x.w <= 3.5; }) },
       { id: 'warm', name: 'Warme Winterjacke oder Mantel', why: 'Für Tage unter 5 °C.', have: any(function (x) { return x.slot === 'outer' && x.w >= 5; }) },
       { id: 'belt', name: 'Gürtel in Braun und Schwarz', why: 'Muss zur Farbe der Schuhe passen.', have: any(function (x) { return x.type === 'guertel' && x.color === 'braun'; }) && any(function (x) { return x.type === 'guertel' && x.color === 'schwarz'; }) }
@@ -230,7 +235,8 @@
       { name: 'Warm', w: { temp: 25, rain: false, snow: false, wind: false, sun: true } },
       { name: 'Regen', w: { temp: 10, rain: true, snow: false, wind: true, sun: false } }
     ];
-    var cells = AK.LEVELS.map(function (lv) {
+    var lvs = levelIds ? AK.LEVELS.filter(function (lv) { return levelIds.indexOf(lv.id) >= 0; }) : AK.LEVELS;
+    var cells = lvs.map(function (lv) {
       return cols.map(function (col) {
         var ctx = { level: lv.id, weather: col.w, transport: 'oepnv', factors: [], must: [], boldness: 1, seed: 1, today: today };
         var info = AK.enumerate(av, ctx, { cap: 5 });
@@ -239,6 +245,6 @@
         return best >= 0.85 ? 2 : (best >= 0.6 ? 1 : 0);
       });
     });
-    return { basics: basics, matrix: { levels: AK.LEVELS, cols: cols.map(function (c) { return c.name; }), cells: cells } };
+    return { basics: basics, matrix: { levels: lvs, cols: cols.map(function (c) { return c.name; }), cells: cells } };
   };
 })(typeof AK !== 'undefined' ? AK : (global.AK = require('./data.js')));

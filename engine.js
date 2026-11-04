@@ -126,10 +126,27 @@
       if (!m) pen += 0.6;
       if (L === 6 && !(c.mid && c.mid.type === 'smoking')) pen += 0.4;
       if (c.top.type !== 'hemd') pen += 0.2;
-    } else if (L === 4 && c.mid && c.mid.type === 'sakko') bonus += 0.06;
+    } else if (L === 4) {
+      // Business Casual: strenger als Smart Casual, aber ohne Krawatte. Hemd und Stoffhose/Chino bevorzugt.
+      if (c.mid && c.mid.type === 'sakko') bonus += 0.06;
+      if (c.top.type === 'hemd') bonus += 0.07;
+      else if (c.top.type !== 'polo') pen += 0.08;
+      if (c.bottom.type === 'jeans') pen += 0.1;
+    }
     if (L <= 5 && c.mid && c.mid.type === 'smoking') pen += 1;
-    var total = item * 0.55 + wea * 0.25 + 0.2 - pen + bonus + colorAdj(c, ctx) + E.rand() * 0.03;
-    return { total: total, ins: ins };
+    // gelernte Vorlieben: ctx.pairs = { 'idA|idB': Wert } (positiv gefällt, negativ nicht).
+    // Mittelwert über alle Paare des Outfits: genau dieses Outfit zählt mehr als eine teilweise Übereinstimmung.
+    var aff = 0;
+    if (ctx.pairs) {
+      var ids = [c.top, c.mid, c.outer, c.bottom, c.shoes].filter(Boolean).map(function (x) { return x.id; }), sum = 0, np = 0;
+      for (var i = 0; i < ids.length; i++) for (var j = i + 1; j < ids.length; j++) {
+        var pk = ids[i] < ids[j] ? ids[i] + '|' + ids[j] : ids[j] + '|' + ids[i];
+        np++; if (ctx.pairs[pk]) sum += ctx.pairs[pk];
+      }
+      aff = np ? Math.max(-0.35, Math.min(0.2, sum / np * 0.15)) : 0;
+    }
+    var total = item * 0.55 + wea * 0.25 + 0.2 - pen + bonus + colorAdj(c, ctx) + aff + E.rand() * 0.03;
+    return { total: total, ins: ins, aff: aff };
   }
 
   /* Wunschteile (Muss) in Slots auflösen */
@@ -218,7 +235,7 @@
             for (var u = 0; u < outOpts.length; u++) {
               var c = { top: tops[a], mid: midOpts[m], outer: outOpts[u], bottom: bottoms[b], shoes: shoes[s] };
               var r = scoreCombo(c, ctx, E);
-              res.combos.push({ c: c, total: r.total, ins: r.ins });
+              res.combos.push({ c: c, total: r.total, ins: r.ins, aff: r.aff });
             }
     res.combos.sort(function (x, y) { return y.total - x.total; });
     return res;

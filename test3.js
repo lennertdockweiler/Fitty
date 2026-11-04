@@ -21,35 +21,56 @@ function allWarns(o) { return o.warns.join(' | '); }
 function sportOnly(x) { return (x.a || 0) >= 2 && x.fmax <= 1; }
 function capItems(cap) { return Object.keys(cap.pieces).reduce(function (a, k) { return a.concat(cap.pieces[k]); }, []); }
 
-run('Black Tie bei 5 °C mit Regen: Smoking, Hemd, Fliege, kein Gürtel, Regenhinweis', function () {
-  var r = suggest({ level: 6, weather: { temp: 5, rain: true, snow: false, wind: false, sun: false }, transport: 'oepnv', season: 'herbst' });
+run('Business Formal bei 5 °C mit Regen: Sakko, Hemd, Krawatte, Mantel, Regenhinweis', function () {
+  var r = suggest({ level: 5, weather: { temp: 5, rain: true, snow: false, wind: false, sun: false }, transport: 'oepnv', season: 'herbst' });
   assert.strictEqual(r.outfits.length, 3);
-  var o = r.outfits[0];
-  assert.strictEqual(o.items.mid.type, 'smoking');
-  assert.strictEqual(o.items.top.type, 'hemd');
-  assert.ok(o.items.outer, 'Mantel erwartet');
-  assert.ok(o.items.acc.some(function (a) { return a.type === 'fliege'; }), 'Fliege erwartet');
-  r.outfits.forEach(function (x) {
-    assert.ok(!x.items.acc.some(function (a) { return a.type === 'guertel'; }), 'kein Gürtel zum Smoking');
-    assert.ok(/wetterfest/.test(allWarns(x)), 'Hinweis auf fehlenden Regenschutz erwartet');
-  });
-});
-
-run('Joggen bei 28 °C: nur Sportteile, keine Jacke, keine Mittelschicht im Top-Vorschlag', function () {
-  var r = suggest({ level: 0, weather: { temp: 28, rain: false, snow: false, wind: false, sun: true }, transport: 'fuss', activity: 'joggen', season: 'sommer' });
-  var o = r.outfits[0];
-  assert.ok(!o.items.outer && !o.items.mid, 'bei 28 °C keine Zusatzschicht');
-  ['top', 'bottom', 'shoes'].forEach(function (k) { assert.ok(o.items[k].a >= 2, k + ' sollte sporttauglich sein: ' + o.items[k].name); });
-  assert.strictEqual(o.warns.length, 0, allWarns(o));
-});
-
-run('Tennis mit erzwungenem Sakko: jedes Outfit warnt', function () {
-  var r = suggest({ level: 0, weather: { temp: 18, sun: true }, transport: 'auto', activity: 'tennis', must: [{ kind: 'type', type: 'sakko' }] });
-  assert.ok(r.outfits.length > 0);
   r.outfits.forEach(function (o) {
-    assert.strictEqual(o.items.mid.type, 'sakko');
-    assert.ok(/Sakko ist für Tennis unpraktisch/.test(allWarns(o)), allWarns(o));
+    assert.strictEqual(o.items.mid.type, 'sakko', 'Sakko erwartet');
+    assert.strictEqual(o.items.top.type, 'hemd', 'Hemd erwartet');
+    assert.ok(o.items.outer, 'Mantel oder Jacke erwartet');
+    assert.ok(o.items.acc.some(function (a) { return a.type === 'krawatte'; }), 'Krawatte erwartet');
+    assert.ok(/wetterfest/.test(allWarns(o)), 'Hinweis auf fehlenden Regenschutz erwartet');
   });
+});
+
+run('Business Casual: Hemd, keine Krawatte, keine Jeans', function () {
+  var r = suggest({ level: 4, weather: { temp: 14 }, transport: 'oepnv', season: 'herbst' });
+  r.outfits.forEach(function (o) {
+    assert.strictEqual(o.items.top.type, 'hemd', 'Hemd erwartet: ' + o.items.top.name);
+    assert.ok(o.items.bottom.type !== 'jeans', 'keine Jeans: ' + o.items.bottom.name);
+    assert.ok(!o.items.acc.some(function (a) { return a.type === 'krawatte' || a.type === 'fliege'; }), 'keine Krawatte');
+  });
+});
+
+run('Black Tie (nur noch intern) ohne Gürtel zum Smoking', function () {
+  var W2 = W.concat([AK.normalize({ id: 'x-smok', name: 'Smoking', type: 'smoking', color: 'schwarz' }), AK.normalize({ id: 'x-fl', name: 'Fliege', type: 'fliege', color: 'schwarz' })]);
+  var r = AK.suggest(W2, { level: 6, weather: { temp: 5, rain: true }, transport: 'auto', factors: [], must: [], seed: 1, today: today }, {});
+  assert.strictEqual(r.outfits[0].items.mid.type, 'smoking');
+  r.outfits.forEach(function (x) { assert.ok(!x.items.acc.some(function (a) { return a.type === 'guertel'; }), 'kein Gürtel zum Smoking'); });
+});
+
+run('Beispielschrank: keine Sport- und Black-Tie-Teile, feste Kennungen', function () {
+  assert.ok(!W.some(function (x) { return x.type === 'smoking' || x.type === 'fliege' || ((x.a || 0) >= 2 && x.fmax <= 1); }));
+  assert.strictEqual(W.filter(function (x) { return x.id === 'demo13'; })[0].name, 'Navy Sakko');
+  assert.ok(AK.DEMO_RETIRED.indexOf('demo15') >= 0, 'Smoking ausgemustert');
+  assert.ok(!AK.ACTIVITIES.some(function (a) { return a.sport || a.hike; }), 'keine Sport-Aktivitäten');
+  assert.deepStrictEqual(AK.UI_LEVELS, [1, 2, 3, 4, 5]);
+});
+
+run('Vorlieben: gemochte Paare steigen, abgelehnte sinken', function () {
+  var base = { level: 2, weather: { temp: 16 }, transport: 'oepnv' };
+  var r0 = suggest(Object.assign({}, base));
+  var top = r0.outfits[0], ids = ['top', 'mid', 'outer', 'bottom', 'shoes'].map(function (k) { return top.items[k]; }).filter(Boolean).map(function (x) { return x.id; }).sort();
+  var pairs = {};
+  for (var i = 0; i < ids.length; i++) for (var j = i + 1; j < ids.length; j++) pairs[ids[i] + '|' + ids[j]] = -3;
+  var r1 = suggest(Object.assign({ pairs: pairs }, base));
+  assert.ok(r1.outfits.every(function (o) { return o.key !== top.key; }), 'abgelehnte Kombination taucht nicht mehr oben auf');
+  var second = r0.outfits[1], ids2 = ['top', 'mid', 'outer', 'bottom', 'shoes'].map(function (k) { return second.items[k]; }).filter(Boolean).map(function (x) { return x.id; }).sort();
+  var likes = {};
+  for (i = 0; i < ids2.length; i++) for (j = i + 1; j < ids2.length; j++) likes[ids2[i] + '|' + ids2[j]] = 1;
+  var r2 = suggest(Object.assign({ pairs: likes }, base));
+  assert.strictEqual(r2.outfits[0].key, second.key, 'gemochte Kombination steht vorn');
+  assert.ok(/gefallen/.test(r2.outfits[0].notes.join(' ')), 'Hinweis auf Vorliebe');
 });
 
 run('Date (Smart Casual) mit Jogginghose: jedes Outfit warnt', function () {
@@ -77,17 +98,6 @@ run('Kapsel 10 Tage Koffer 24 °C: kein Laufshirt und keine anderen reinen Sport
   assert.ok(cap.pieces.top.length >= 3);
 });
 
-run('Kapsel mit Tennis: Sportteile kommen mit', function () {
-  var cap = AK.capsule(W, { days: 4, luggage: 'koffer', temp: 18, levels: [0, 2], today: today, activity: 'tennis' });
-  assert.ok(capItems(cap).some(sportOnly), 'Sportteile erwartet');
-});
-
-run('Kapsel zum Wandern: Laufschuhe ja, Laufshirt nur auf Stufe Sportlich', function () {
-  var cap = AK.capsule(W, { days: 3, luggage: 'koffer', temp: 14, levels: [2, 3], today: today, activity: 'wandern' });
-  var names = capItems(cap).map(function (x) { return x.name; });
-  assert.ok(names.indexOf('Laufshirt') < 0, names.join(', '));
-});
-
 run('Wunsch „eine Jeans“ nutzt beide Jeans über mehrere Würfe', function () {
   var seen = {}, avoid = [];
   for (var seed = 1; seed <= 6; seed++) {
@@ -113,11 +123,12 @@ run('Leerer Schrank meldet fehlende Slots', function () {
 run('Einkaufs-Check und Lücken liefern Ergebnisse', function () {
   var sc = AK.shopCheck(W, AK.normalize({ name: 'Grüner Pullover', type: 'pullover', color: 'gruen' }), today);
   assert.ok(['good', 'great'].indexOf(sc.tier) >= 0, sc.tier);
+  assert.ok(!(0 in sc.byLevel) && !(6 in sc.byLevel), 'nur angebotene Stufen');
   assert.ok(sc.partners.length > 0);
   var acc = AK.shopCheck(W, AK.normalize({ name: 'Uhr', type: 'uhr', color: 'grau' }), today);
   assert.strictEqual(acc.tier, 'acc');
-  var g = AK.gaps(W, today);
-  assert.strictEqual(g.matrix.cells.length, 7);
+  var g = AK.gaps(W, today, AK.UI_LEVELS);
+  assert.strictEqual(g.matrix.cells.length, 5);
   assert.ok(g.basics.length >= 10);
 });
 

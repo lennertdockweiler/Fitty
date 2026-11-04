@@ -6,10 +6,14 @@ AK.LEVELS = [
   { id: 1, name: 'Entspannt', hint: 'Zuhause, Spaziergang, Couch-Tag' },
   { id: 2, name: 'Casual', hint: 'Alltag, Freunde, Uni, Café' },
   { id: 3, name: 'Smart Casual', hint: 'Date, Restaurant, Feier unter Freunden' },
-  { id: 4, name: 'Business Casual', hint: 'Büro, Kundentermin, Vorstellungsgespräch' },
-  { id: 5, name: 'Business / Cocktail', hint: 'Anzug, Hochzeit, Empfang' },
+  { id: 4, name: 'Business Casual', hint: 'Büro ohne Krawatte: Hemd, Sakko oder Feinstrick, Chino oder Stoffhose, Lederschuhe' },
+  { id: 5, name: 'Business Formal', hint: 'Anzug mit Krawatte: Kundentermin, Hochzeit, Empfang' },
   { id: 6, name: 'Black Tie', hint: 'Gala, Oper, Abendveranstaltung' }
 ];
+/* Stufen, die die Oberfläche anbietet. 0 (Sportlich) und 6 (Black Tie) kennt die Engine weiter,
+   damit gespeicherte Teile und alte Tests gültig bleiben, sie werden aber nicht mehr angeboten. */
+AK.UI_LEVELS = [1, 2, 3, 4, 5];
+AK.LEVEL_SHORT = { 1: 'Entspannt', 2: 'Casual', 3: 'Smart Casual', 4: 'Business Casual', 5: 'Business Formal' };
 
 AK.SLOTS = [
   { id: 'top', name: 'Oberteil' },
@@ -114,17 +118,24 @@ AK.seasonFor = function (temp, month) {
   return 'herbst';
 };
 
-/* Aktivitäten: f = Zusatzfaktoren, sport = Sportkleidung nötig, hike = festes Schuhwerk, level = passender Dresscode */
+/* Aktivitäten (Anlässe): f = Zusatzfaktoren, range = üblicher Dresscode [von, bis].
+   Sport-Aktivitäten gibt es nicht mehr; die Engine kann sie weiterhin auswerten (sport, hike). */
 AK.ACTIVITIES = [
   { id: 'alltag', name: 'Alltag' },
-  { id: 'buero', name: 'Büro / Sitzen', f: ['sit'] },
-  { id: 'stadt', name: 'Stadtbummel', f: ['walk'] },
-  { id: 'reise', name: 'Reisetag', f: ['sit', 'walk'] },
-  { id: 'tanzen', name: 'Party / Tanzen', f: ['indoor'] },
-  { id: 'tennis', name: 'Tennis', sport: 1, level: 0 },
-  { id: 'joggen', name: 'Joggen', sport: 1, level: 0 },
-  { id: 'gym', name: 'Gym', sport: 1, level: 0 },
-  { id: 'wandern', name: 'Wandern', hike: 1, level: 0, f: ['walk'] }
+  { id: 'buero', name: 'Büro', f: ['sit'], range: [2, 5] },
+  { id: 'homeoffice', name: 'Homeoffice / Zuhause', f: ['indoor'], range: [1, 2] },
+  { id: 'meeting', name: 'Kundentermin / Präsentation', f: ['sit', 'impress'], range: [4, 5] },
+  { id: 'vorstellung', name: 'Vorstellungsgespräch', f: ['sit', 'impress'], range: [4, 5] },
+  { id: 'date', name: 'Date / Abendessen', f: ['sit', 'impress'], range: [2, 4] },
+  { id: 'stadt', name: 'Stadtbummel / Shopping', f: ['walk'], range: [1, 3] },
+  { id: 'ausflug', name: 'Ausflug / Spaziergang', f: ['walk'], range: [1, 3] },
+  { id: 'uni', name: 'Uni / Weiterbildung', f: ['sit', 'walk'], range: [1, 3] },
+  { id: 'reise', name: 'Reisetag', f: ['sit', 'walk'], range: [1, 4] },
+  { id: 'kino', name: 'Kino / Konzert', f: ['sit', 'indoor'], range: [1, 3] },
+  { id: 'theater', name: 'Theater / Oper', f: ['sit', 'indoor', 'impress'], range: [3, 5] },
+  { id: 'feier', name: 'Geburtstag / Familienfeier', f: ['indoor'], range: [2, 4] },
+  { id: 'party', name: 'Party / Ausgehen', f: ['indoor'], range: [2, 4] },
+  { id: 'hochzeit', name: 'Hochzeit (Gast)', f: ['sit', 'impress'], range: [4, 5] }
 ];
 AK.ACT = {};
 AK.ACTIVITIES.forEach(function (a) { AK.ACT[a.id] = a; });
@@ -203,7 +214,8 @@ AK.WEATHER_PRESETS = [
   { name: 'Heiß', temp: 31, rain: false, snow: false, wind: false, sun: true }
 ];
 
-/* Beispiel-Schrank (ohne Fotos), wird nur angezeigt, solange der eigene Schrank leer ist */
+/* Beispiel-Schrank (ohne Fotos, die App zeichnet die Teile), wird nur angezeigt, solange der eigene Schrank leer ist.
+   Die Kennungen demo1 … sind fest: ausgemusterte Teile (retired) bleiben in der Liste, neue kommen ans Ende. */
 (function () {
   var n = 0;
   function g(type, name, color, o) {
@@ -215,10 +227,10 @@ AK.WEATHER_PRESETS = [
       pattern: o.pattern || 'uni', fmin: o.fmin != null ? o.fmin : t.fmin, fmax: o.fmax != null ? o.fmax : t.fmax,
       w: o.w != null ? o.w : t.w, c: o.c != null ? o.c : t.c, water: o.water != null ? o.water : !!t.water,
       fav: !!o.fav, never: !!o.never, basic: !!o.basic, avail: true, photo: null, wears: o.wears || 0, last: null,
-      a: t.a || 0, s: (t.s || []).slice()
+      a: t.a || 0, s: (t.s || []).slice(), retired: !!o.retired
     };
   }
-  AK.DEMO = [
+  var ALL = [
     g('tshirt', 'Weißes T-Shirt', 'weiss', { basic: true }),
     g('tshirt', 'Graues T-Shirt', 'grau', { basic: true }),
     g('langarm', 'Navy Langarmshirt', 'navy', { basic: true }),
@@ -226,14 +238,14 @@ AK.WEATHER_PRESETS = [
     g('hemd', 'Weißes Hemd', 'weiss', { basic: true, fmax: 6 }),
     g('hemd', 'Hellblaues Hemd', 'hellblau', { basic: true }),
     g('hemd', 'Oxford-Hemd', 'blau', { pattern: 'streifen', fmin: 2, fmax: 4 }),
-    g('sporttop', 'Laufshirt', 'schwarz'),
+    g('sporttop', 'Laufshirt', 'schwarz', { retired: true }),
     g('pullover', 'Grauer Wollpullover', 'grau', { fav: true, basic: true }),
     g('pullover', 'Oliver Strickpullover', 'oliv'),
     g('feinstrick', 'Feinstrick-Rollkragen', 'anthrazit', { fmax: 5 }),
     g('hoodie', 'Hoodie Anthrazit', 'anthrazit'),
     g('sakko', 'Navy Sakko', 'navy', { fav: true, basic: true }),
     g('sakko', 'Graues Sakko', 'grau', { pattern: 'karo' }),
-    g('smoking', 'Smoking', 'schwarz'),
+    g('smoking', 'Smoking', 'schwarz', { retired: true }),
     g('shorts', 'Shorts Beige', 'beige'),
     g('uebergang', 'Beige Übergangsjacke', 'beige'),
     g('lederjacke', 'Lederjacke', 'schwarz', { fav: true }),
@@ -247,10 +259,10 @@ AK.WEATHER_PRESETS = [
     g('stoff', 'Stoffhose Grau', 'grau'),
     g('anzughose', 'Anzughose Schwarz', 'schwarz'),
     g('jogger', 'Jogger Schwarz', 'schwarz'),
-    g('sporthose', 'Laufhose', 'schwarz'),
+    g('sporthose', 'Laufhose', 'schwarz', { retired: true }),
     g('sneaker', 'Weiße Sneaker', 'weiss', { fav: true, basic: true, fmax: 3 }),
     g('sneaker', 'Schwarze Sneaker', 'schwarz'),
-    g('laufschuh', 'Laufschuhe', 'grau'),
+    g('laufschuh', 'Laufschuhe', 'grau', { retired: true }),
     g('boots', 'Braune Boots', 'braun', { water: true }),
     g('chelsea', 'Chelsea Boots', 'braun'),
     g('derby', 'Derby Schwarz', 'schwarz'),
@@ -261,9 +273,20 @@ AK.WEATHER_PRESETS = [
     g('schal', 'Wollschal', 'grau'),
     g('muetze', 'Mütze', 'schwarz'),
     g('krawatte', 'Krawatte Navy', 'navy'),
-    g('fliege', 'Fliege Schwarz', 'schwarz'),
-    g('sonnenbrille', 'Sonnenbrille', 'schwarz')
+    g('fliege', 'Fliege Schwarz', 'schwarz', { retired: true }),
+    g('sonnenbrille', 'Sonnenbrille', 'schwarz'),
+    // ab hier neu: mehr Auswahl für Business Casual und Business Formal
+    g('feinstrick', 'Feinstrick Navy (V-Ausschnitt)', 'navy', { basic: true }),
+    g('stoff', 'Stoffhose Navy', 'navy'),
+    g('loafer', 'Loafer Braun', 'braun'),
+    g('krawatte', 'Krawatte Bordeaux', 'bordeaux', { pattern: 'streifen' }),
+    g('einstecktuch', 'Einstecktuch Weiß', 'weiss'),
+    g('polo', 'Polo Weiß', 'weiss'),
+    g('strickjacke', 'Strickjacke Grau', 'grau')
   ];
+  AK.DEMO = ALL.filter(function (x) { return !x.retired; });
+  AK.DEMO.forEach(function (x) { delete x.retired; });
+  AK.DEMO_RETIRED = ALL.filter(function (x) { return x.retired; }).map(function (x) { return x.id; });
 })();
 
 if (typeof module !== 'undefined') module.exports = AK;
