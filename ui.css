@@ -219,3 +219,27 @@ details.more-opts[open] > .stack { margin-top: 14px; }
 .jump { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 999px; padding: 10px 18px; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; min-height: 44px; box-shadow: 0 6px 18px rgba(0,0,0,.22); }
 .jump svg { width: 18px; height: 18px; }
 @media (min-width: 960px) { .jump { display: none; } }
+
+/* Foto-Eindruck unter der Skizze */
+.o-photo { display: grid; grid-template-columns: minmax(0, 44%) minmax(0, 1fr); gap: 12px; align-items: start; }
+.o-photo.nofr { grid-template-columns: minmax(0, 1fr); }
+.ph-frame { background: var(--tile); border-radius: 6px; aspect-ratio: 2 / 3; position: relative; overflow: hidden; display: grid; place-items: center; }
+.ph-frame .ph-img { position: absolute; inset: 0; display: grid; place-items: center; padding: 8px; }
+.ph-frame img { width: 100%; height: 100%; object-fit: cover; display: block; position: absolute; inset: 0; }
+.ph-frame .ph-status { position: absolute; left: 6px; right: 6px; bottom: 6px; font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; justify-content: center; text-align: center; }
+.ph-frame .ph-status.busy::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+.ph-frame[data-state="done"] .ph-status { display: none; }
+.ph-side { display: grid; gap: 8px; align-content: start; }
+.ph-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.ph-links .btn { text-decoration: none; }
+.ph-links .btn svg { width: 16px; height: 16px; }
+a.btn { text-decoration: none; }
+
+/* Text-Import */
+.toolbar.t3 { grid-template-columns: minmax(0, 1fr) auto auto; }
+.txt-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.txt-row.bad .txt-main b { color: var(--warn); }
+.txt-main { display: grid; gap: 6px; min-width: 0; }
+.txt-main .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.txt-main select { min-height: 40px; padding: 6px 8px; font-size: 14px; }
+.thumb.unknown { display: grid; place-items: center; background: var(--tile); color: var(--warn); font-weight: 700; }

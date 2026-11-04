@@ -32,6 +32,9 @@ ICONS.search = '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>';
 ICONS.pin = '<path d="M12 21s-6.5-6.2-6.5-11A6.5 6.5 0 0 1 18.5 10c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>';
 ICONS.refresh = '<path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4"/>';
 ICONS.minus = '<path d="M5 12h14"/>';
+ICONS.ext = '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>';
+ICONS.list = '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>';
+ICONS.spark = '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>';
 
 function registerPanel(id, o) { o.built = false; PANELS[id] = o; }
 function levelName(L) { return (AK.LEVELS[L] || {}).name || ''; }
@@ -325,7 +328,7 @@ function outfitCard(o, opt) {
   o.notes.forEach(function (w) { notes.append(h('li', null, w)); });
   (o.softs || []).forEach(function (w) { notes.append(h('li', { class: 's' }, w)); });
   var why = h('details', { class: 'o-why' }, h('summary', null, 'Warum dieses Outfit?'), notes);
-  var body = h('div', { class: 'o-body' }, head, h('div', { class: 'o-main' + (fig ? '' : ' nofig') }, fig, pieces), acc, warns, why);
+  var body = h('div', { class: 'o-body' }, head, h('div', { class: 'o-main' + (fig ? '' : ' nofig') }, fig, pieces), opt.noPhoto ? null : photoBlock(it), acc, warns, why);
   if (opt.actions) {
     var wearBtn = h('button', { class: 'btn', type: 'button' }, ico('check'), 'Das trage ich');
     var saveBtn = h('button', { class: 'btn ghost', type: 'button' }, ico('bookmark'), 'Merken');
@@ -355,6 +358,99 @@ function outfitCard(o, opt) {
     body.append(h('div', { class: 'o-actions' }, wearBtn, saveBtn, h('div', { class: 'rate', role: 'group', 'aria-label': 'Bewerten' }, likeBtn, nopeBtn)));
   }
   return h('article', { class: 'outfit', 'aria-label': 'Vorschlag ' + ((opt.i || 0) + 1) + ': ' + main.map(function (x) { return x.name; }).join(', ') }, spine, body);
+}
+
+/* ---------- Foto-Eindruck: KI-Bild (nur eigenständige Fassung) und Links zu ähnlichen Looks im Web ---------- */
+var EN_TYPE = { tshirt: 't-shirt', langarm: 'long-sleeve t-shirt', polo: 'polo shirt', hemd: 'button-down dress shirt', sporttop: 'sports t-shirt',
+  pullover: 'crew-neck wool sweater', feinstrick: 'fine-knit sweater', strickjacke: 'cardigan', sweat: 'sweatshirt', hoodie: 'hoodie', fleece: 'fleece pullover',
+  sakko: 'blazer', smoking: 'tuxedo jacket', weste: 'waistcoat', jeansjacke: 'denim jacket', lederjacke: 'leather jacket', bomber: 'bomber jacket',
+  uebergang: 'light jacket', regenjacke: 'rain jacket', softshell: 'softshell jacket', trench: 'trench coat', wintermantel: 'wool overcoat', parka: 'parka',
+  daune: 'down jacket', trainingsjacke: 'track jacket', jeans: 'jeans', chino: 'chinos', stoff: 'wool trousers', anzughose: 'suit trousers', jogger: 'joggers',
+  shorts: 'shorts', sporthose: 'sports leggings', cargo: 'cargo pants', sneaker: 'sneakers', laufschuh: 'running shoes', boots: 'leather boots',
+  chelsea: 'chelsea boots', loafer: 'loafers', derby: 'derby shoes', oxford: 'oxford shoes', sandalen: 'sandals', winterstiefel: 'winter boots',
+  guertel: 'leather belt', schal: 'scarf', muetze: 'beanie', krawatte: 'tie', fliege: 'bow tie', einstecktuch: 'pocket square', cap: 'baseball cap', sonnenbrille: 'sunglasses' };
+var EN_COLOR = { schwarz: 'black', anthrazit: 'charcoal', grau: 'grey', weiss: 'white', navy: 'navy', indigo: 'dark indigo', denim: 'light blue', beige: 'beige',
+  sand: 'sand-colored', camel: 'camel', braun: 'brown', oliv: 'olive green', bordeaux: 'burgundy', blau: 'blue', hellblau: 'light blue', gruen: 'green',
+  lila: 'purple', rot: 'red', orange: 'orange', gelb: 'mustard yellow', rosa: 'pink' };
+var EN_PAT = { streifen: 'striped', karo: 'checked', print: 'graphic print' };
+function imgMode() { return IN_CLAUDE ? 'off' : (S.settings.imgMode || 'auto'); }
+function personWord(lang) { var p = S.settings.imgPerson || 'neutral'; return lang === 'de' ? ({ herren: 'Herren', damen: 'Damen' }[p] || '') : ({ herren: 'man', damen: 'woman' }[p] || 'person'); }
+function aiPromptFor(o) {
+  function d(x) { return [EN_PAT[x.pattern], EN_COLOR[x.color], EN_TYPE[x.type] || x.type].filter(Boolean).join(' '); }
+  var wear = [];
+  if (o.outer) wear.push('an open ' + d(o.outer));
+  if (o.mid) wear.push((o.mid.type === 'sakko' ? 'an open ' : 'a ') + d(o.mid));
+  if (o.top) wear.push('a ' + d(o.top));
+  if (o.bottom) wear.push(d(o.bottom));
+  if (o.shoes) wear.push(d(o.shoes));
+  var acc = (o.acc || []).filter(function (a) { return EN_TYPE[a.type]; }).map(function (a) { return 'a ' + d(a); });
+  return 'Full-body fashion photo of a ' + personWord('en') + ' standing straight, front view, wearing ' + wear.join(', ') +
+    (acc.length ? ', with ' + acc.join(', ') : '') + '. Plain light grey studio background, natural light, realistic, sharp focus';
+}
+function seedOf(s) { var x = 7; for (var i = 0; i < s.length; i++) x = (x * 31 + s.charCodeAt(i)) % 1000003; return x; }
+function aiUrl(o) {
+  return 'https://image.pollinations.ai/prompt/' + encodeURIComponent(aiPromptFor(o)) + '?width=512&height=768&nologo=true&private=true&seed=' + seedOf(fullKey(o) + (S.settings.imgPerson || ''));
+}
+function webQuery(o) {
+  var q = ['outer', 'mid', 'top', 'bottom', 'shoes'].map(function (k) { return o[k]; }).filter(Boolean).map(function (x) { return cname(x.color) + ' ' + typeLabel(x.type); });
+  return q.join(' ') + ' Outfit' + (personWord('de') ? ' ' + personWord('de') : '');
+}
+/* Bilder nacheinander laden, damit der freie Dienst nicht überlastet; ausgelastet = später erneut versuchen */
+var IMGQ = { list: [], cur: null, timer: null };
+function queueImg(frame, url) {
+  if (IMGQ.cur && !IMGQ.cur.frame.isConnected) { IMGQ.cur.img.src = ''; IMGQ.cur = null; }
+  IMGQ.list.push({ frame: frame, url: url, tries: 0 });
+  clearTimeout(IMGQ.timer); IMGQ.timer = setTimeout(pumpImg, 900);
+}
+function frameState(frame, state, txt) {
+  frame.setAttribute('data-state', state);
+  var st = frame.querySelector('.ph-status');
+  if (st) { st.textContent = txt || ''; st.classList.toggle('busy', state === 'loading' || state === 'retry'); }
+}
+function pumpImg() {
+  if (IMGQ.cur) return;
+  var job = IMGQ.list.shift();
+  while (job && !job.frame.isConnected) job = IMGQ.list.shift();
+  if (!job) return;
+  var img = new Image();
+  job.img = img; IMGQ.cur = job;
+  frameState(job.frame, 'loading', job.tries ? 'Neuer Versuch …' : 'KI-Bild wird erzeugt …');
+  function next() { if (IMGQ.cur === job) IMGQ.cur = null; pumpImg(); }
+  img.onload = function () {
+    img.alt = 'KI-Bild des Outfits (ungefährer Eindruck)';
+    var f = job.frame.querySelector('.ph-img'); clear(f); f.append(img);
+    frameState(job.frame, 'done', ''); next();
+  };
+  img.onerror = function () {
+    if (!job.frame.isConnected) { next(); return; }
+    job.tries++;
+    if (job.tries < 3) {
+      frameState(job.frame, 'retry', 'Dienst ausgelastet, neuer Versuch in ein paar Sekunden …');
+      IMGQ.cur = null;
+      setTimeout(function () { IMGQ.list.unshift(job); pumpImg(); }, 11000);
+    } else { frameState(job.frame, 'error', 'Gerade kein Bild verfügbar (Dienst ausgelastet oder offline).'); next(); }
+  };
+  img.referrerPolicy = 'no-referrer';
+  img.src = job.url;
+}
+function photoBlock(it) {
+  var mode = imgMode(), q = webQuery(it);
+  var links = h('div', { class: 'ph-links' },
+    h('a', { class: 'btn ghost small', href: 'https://www.pinterest.de/search/pins/?q=' + encodeURIComponent(q), target: '_blank', rel: 'noopener noreferrer' }, ico('ext'), 'Pinterest'),
+    h('a', { class: 'btn ghost small', href: 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(q), target: '_blank', rel: 'noopener noreferrer' }, ico('ext'), 'Google Bilder'));
+  var side = h('div', { class: 'ph-side' }, h('span', { class: 'mono' }, 'Ähnliche Looks im Web'), links);
+  if (mode === 'off') {
+    if (IN_CLAUDE) side.append(h('span', { class: 'muted small' }, 'KI-Bilder gibt es in der eigenständigen Fassung, claude.ai sperrt Bilder aus dem Netz.'));
+    return h('div', { class: 'o-photo nofr' }, side);
+  }
+  var frame = h('div', { class: 'ph-frame', 'data-state': 'idle' }, h('div', { class: 'ph-img' }), h('div', { class: 'ph-status', 'aria-live': 'polite' }));
+  var url = aiUrl(it);
+  if (mode === 'auto') queueImg(frame, url);
+  else {
+    frame.querySelector('.ph-img').append(h('button', { class: 'btn small', type: 'button', onclick: function (ev) { ev.currentTarget.remove(); queueImg(frame, url); } }, ico('spark'), 'KI-Bild erzeugen'));
+  }
+  side.insertBefore(h('span', { class: 'muted small' }, 'KI-Bild, nur ein ungefährer Eindruck. Farben und Schnitte können abweichen.'), links);
+  return h('div', { class: 'o-photo' }, frame, side);
 }
 
 /* Kompakte Zeile: Farbstreifen plus Namen */

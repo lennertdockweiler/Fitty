@@ -84,7 +84,10 @@ function pngGreenSquare(page) {
 var WX_FIXTURE = { daily: { time: ['2026-11-04', '2026-11-05'], temperature_2m_max: [7.4, 11.2], temperature_2m_min: [3.9, 4.2], weather_code: [61, 2],
   precipitation_probability_max: [80, 10], snowfall_sum: [0, 0], wind_speed_10m_max: [31, 6] } };
 var GEO_FIXTURE = { results: [{ name: 'Freiburg im Breisgau', latitude: 47.995, longitude: 7.85, admin1: 'Baden-Württemberg', country: 'Deutschland' }] };
+var PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+var IMG_URLS = [];
 async function stubNet(ctx) {
+  await ctx.route('https://image.pollinations.ai/**', function (r) { IMG_URLS.push(r.request().url()); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG_1PX }); });
   await ctx.route('https://api.open-meteo.com/**', function (r) { return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(WX_FIXTURE) }); });
   await ctx.route('https://geocoding-api.open-meteo.com/**', function (r) { return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(GEO_FIXTURE) }); });
 }
@@ -105,6 +108,12 @@ async function fullFlow(browser, url, opt) {
     ok((await page.getAttribute('.cond[data-v="regen"]', 'aria-pressed')) === 'true', 'Regen aus dem Live-Wetter');
     ok((await page.getAttribute('#today-wind', 'aria-pressed')) === 'true', 'Wind aus dem Live-Wetter');
     ok((await page.$$('.tape button')).length === 5, 'fünf Dresscode-Stufen');
+    await page.waitForSelector('#today-results .outfit:first-of-type .ph-frame[data-state="done"] img', { timeout: 6000 });
+    var u = decodeURIComponent(IMG_URLS[IMG_URLS.length - 1] || '');
+    ok(/Full-body fashion photo of a person/.test(u) && /seed=\d+/.test(u), 'KI-Bild mit Outfit-Beschreibung angefragt: ' + u.slice(0, 120));
+    var pin = await page.getAttribute('#today-results .outfit:first-of-type .ph-links a:first-child', 'href');
+    ok(/^https:\/\/www\.pinterest\.de\/search\/pins\/\?q=.+Outfit/.test(pin), 'Pinterest-Link: ' + pin);
+    ok((await page.getAttribute('#today-results .outfit:first-of-type .ph-links a:first-child', 'target')) === '_blank', 'Link öffnet neuen Tab');
     var labels = await page.$$eval('.tape .l', function (els) { return els.map(function (e) { return e.textContent; }); });
     ok(labels.join('|') === 'Entspannt|Casual|Smart Casual|Business Casual|Business Formal', 'Stufen: ' + labels.join('|'));
     var acts = await page.$$eval('#today-activity option', function (els) { return els.map(function (e) { return e.value; }); });
@@ -301,6 +310,24 @@ async function fullFlow(browser, url, opt) {
     await noHScroll(page, 'Scan');
   });
 
+  await step(tag + ': Mehrere Teile per Text hinzufügen', async function () {
+    await page.click('#t-closet');
+    await page.click('#btn-addtxt');
+    await page.fill('#txt-in', 'Navy Sakko, 2 weiße T-Shirts\ndunkle Jeans, Fantasieteil');
+    await page.waitForFunction(function () { return document.querySelectorAll('#txt-rows .txt-row').length === 4; }, null, { timeout: 3000 });
+    ok((await page.$$('#txt-rows .txt-row.bad')).length === 1, 'unbekannter Eintrag markiert');
+    ok((await page.inputValue('#txt-type-1')) === 'tshirt' && (await page.inputValue('#txt-color-1')) === 'weiss', 'T-Shirts weiß erkannt');
+    ok((await page.inputValue('#txt-color-2')) === 'indigo', 'dunkle Jeans = Indigo');
+    ok(/4 Teile hinzufügen/.test(await page.textContent('#txt-add')), 'Knopf zählt 4 Teile');
+    await page.selectOption('#txt-type-3', 'cap');
+    ok(/5 Teile hinzufügen/.test(await page.textContent('#txt-add')), 'nach Korrektur 5 Teile');
+    await page.click('#txt-add');
+    var s = await store(page);
+    ok(s.items.length === 52 && s.items.filter(function (x) { return x.type === 'tshirt' && x.color === 'weiss' && x.name === 'T-Shirt Weiß'; }).length === 2, 'Teile aus dem Text im Schrank: ' + s.items.length);
+    ok(s.items.some(function (x) { return x.name === 'Navy Sakko' && x.type === 'sakko' && x.id !== 'demo13'; }), 'Navy Sakko angelegt');
+    await noHScroll(page, 'Text-Import');
+  });
+
   await step(tag + ': Mehr: Lücken, Staples, Kapsel, Woche, Tagebuch', async function () {
     await page.click('#t-more');
     ok((await page.$$('#more-body .matrix .c')).length === 20, 'Matrix 5 × 4');
@@ -339,16 +366,23 @@ async function fullFlow(browser, url, opt) {
     ok(s.settings.wxPlace && s.settings.wxPlace.name === 'Freiburg im Breisgau', 'Ort gespeichert');
     await page.click('#set-export-go');
     var json = JSON.parse(await page.inputValue('#set-export'));
-    ok(json.items.length === 47 && json.diary.length === 1 && json.feedback.length === 2, 'Export vollständig');
+    ok(json.items.length === 52 && json.diary.length === 1 && json.feedback.length === 2, 'Export vollständig');
     var extra = { items: [{ id: 'imp1', name: 'Importierte Chino', type: 'chino', color: 'oliv' }, { id: 'bad', type: 'unbekannt' }] };
     await page.fill('#set-import', JSON.stringify(extra));
     await page.click('#set-import-go');
     s = await store(page);
-    ok(s.items.length === 48 && s.items.some(function (x) { return x.id === 'imp1' && x.slot === 'bottom'; }), 'Import ergänzt');
+    ok(s.items.length === 53 && s.items.some(function (x) { return x.id === 'imp1' && x.slot === 'bottom'; }), 'Import ergänzt');
     await page.fill('#set-import', '{kaputt');
     await page.click('#set-import-go');
     ok(/kein gültiges JSON/.test(await page.textContent('#toast')), 'Fehlermeldung bei kaputtem JSON');
     await shot(page, tag + '-mehr-einstellungen');
+    await page.click('#more-body [aria-label="Personen auf Bildern"] button:has-text("Herren")');
+    await page.click('#more-body [aria-label="KI-Bilder"] button:has-text("Aus")');
+    await page.click('#t-today');
+    await page.waitForSelector('#today-results .outfit .o-photo.nofr');
+    ok(!(await page.$('#today-results .ph-frame')), 'KI-Bilder aus');
+    ok(/Herren/.test(decodeURIComponent(await page.getAttribute('#today-results .outfit:first-of-type .ph-links a:first-child', 'href'))), 'Suche mit Herren');
+    await page.click('#t-more');
   });
 
   await step(tag + ': Alle Daten löschen (zweistufig) und leerer Zustand', async function () {
@@ -383,6 +417,7 @@ async function aiFlow(browser, url, mode) {
   var page = await newPage(browser, url, { w: 400, h: 860, scheme: 'light', init: '(' + init.toString() + ')(' + JSON.stringify(mode) + ')' });
   await step('Scan mit Claude (' + (mode === 'fail' ? 'abgelehnt, still per Hand' : 'erkannt') + ')', async function () {
     await page.waitForSelector('#today-results .outfit');
+    ok(!(await page.$('#today-results .ph-frame')) && (await page.$$('#today-results .o-photo.nofr .ph-links a')).length === 6, 'im Artifact nur Links, keine KI-Bilder');
     await page.click('#t-scan');
     await page.setInputFiles('#scan-pick', await pngGreenSquare(page));
     if (mode === 'fail') {

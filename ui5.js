@@ -456,6 +456,19 @@ function drawSettings(box) {
   }
   box.append(sec('Wetter', wx));
 
+  var pics = h('div', { class: 'card stack' });
+  if (IN_CLAUDE) pics.append(h('div', { class: 'muted small' }, 'KI-Bilder zu den Outfits gibt es in der eigenständigen Fassung (Raspberry Pi, GitHub Pages), weil claude.ai Bilder aus dem Netz sperrt. Die Links zu Pinterest und Google Bilder funktionieren auch hier.'));
+  else {
+    pics.append(h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'KI-Bild unter jeder Skizze'),
+      seg([{ id: 'auto', label: 'Automatisch' }, { id: 'manual', label: 'Auf Knopfdruck' }, { id: 'off', label: 'Aus' }], function () { return S.settings.imgMode || 'auto'; },
+        function (v) { Store.setSetting('imgMode', v); V.needsRecalc = true; V.dirty.today = true; }, 'KI-Bilder')));
+    pics.append(h('div', { class: 'muted small' }, 'Die Bilder erzeugt der freie Dienst pollinations.ai. Ankleide schickt dafür nur eine Beschreibung des Outfits (Art und Farbe der Teile), keine Fotos und keine persönlichen Daten. Ein Bild dauert etwa 5 bis 15 Sekunden.'));
+  }
+  pics.append(h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Personen auf Bildern und bei der Suche'),
+    seg([{ id: 'neutral', label: 'Neutral' }, { id: 'herren', label: 'Herren' }, { id: 'damen', label: 'Damen' }], function () { return S.settings.imgPerson || 'neutral'; },
+      function (v) { Store.setSetting('imgPerson', v); V.needsRecalc = true; V.dirty.today = true; }, 'Personen auf Bildern')));
+  box.append(sec('Bilder', pics));
+
   var likes = S.feedback.filter(function (f) { return f.v > 0; }).length, nopes = S.feedback.length - likes;
   var pref = h('div', { class: 'card stack' },
     h('div', { class: 'kpi' }, h('div', null, h('b', null, likes), h('span', { class: 'mono' }, 'gefällt mir')),

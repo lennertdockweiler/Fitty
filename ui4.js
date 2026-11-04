@@ -195,11 +195,12 @@ registerPanel('closet', {
     q.value = V.closet.q;
     q.addEventListener('input', function () { V.closet.q = q.value; drawCloset(); });
     var add = h('button', { class: 'btn accent', type: 'button', id: 'btn-add', 'aria-label': 'Neues Teil anlegen', onclick: function () { openEditor(null); } }, ico('plus'), 'Neu');
+    var addTxt = h('button', { class: 'btn ghost icon', type: 'button', id: 'btn-addtxt', 'aria-label': 'Mehrere Teile per Text hinzufügen', title: 'Mehrere Teile per Text hinzufügen', onclick: openTextImport }, ico('list'));
     CL.slots = h('div');
     CL.filters = chipGroup(CLOSET_FILTERS, function (k) { return !!V.closet.f[k]; }, function (k) { V.closet.f[k] = !V.closet.f[k]; drawCloset(); }, 'Filter');
     CL.count = h('div', { class: 'countline' });
     CL.grid = h('div', { class: 'closet', id: 'closet-grid' });
-    p.append(CL.banner, h('div', { class: 'sec stack' }, h('div', { class: 'toolbar' }, h('div', { class: 'searchbox' }, ico('search'), q), add), CL.slots, CL.filters), h('div', { class: 'sec stack' }, CL.count, CL.grid));
+    p.append(CL.banner, h('div', { class: 'sec stack' }, h('div', { class: 'toolbar t3' }, h('div', { class: 'searchbox' }, ico('search'), q), addTxt, add), CL.slots, CL.filters), h('div', { class: 'sec stack' }, CL.count, CL.grid));
     drawCloset();
   },
   refresh: function () { CL.banner.upd(); drawCloset(); }
@@ -246,6 +247,7 @@ function drawCloset() {
       h('p', { style: 'margin:0' }, 'Lege dein erstes Teil an oder fotografiere es im Tab „Scan“.'),
       h('div', { class: 'row', style: 'justify-content:center' },
         h('button', { class: 'btn', type: 'button', onclick: function () { openEditor(null); } }, ico('plus'), 'Teil anlegen'),
+        h('button', { class: 'btn ghost', type: 'button', onclick: openTextImport }, ico('list'), 'Per Text hinzufügen'),
         h('button', { class: 'btn ghost', type: 'button', onclick: function () { Store.setSetting('demoOff', false); V.needsRecalc = true; changed(); } }, 'Beispielschrank zeigen'))));
     return;
   }
@@ -465,4 +467,158 @@ function drawScan(p) {
     labeled('Name', name, 'scan-name'))));
   p.append(h('div', { class: 'sec stack' }, bCombine, bShop, saveBox), h('div', { class: 'sec' }, out));
   drawOut();
+}
+
+/* ---------- Mehrere Teile per Text hinzufügen ----------
+   Beispiel: „Navy Sakko, 2 weiße T-Shirts, dunkle Jeans, gestreiftes Hemd“. Jede Zeile oder jeder Eintrag
+   zwischen Kommas wird ein Teil. Art, Farbe, Muster und Anzahl erkennt ein einfacher Regelsatz;
+   im Artifact kann Claude genauer erkennen. */
+var TXT_TYPES = [
+  ['tshirts?|\\btees?\\b|\\bshirts?\\b', 'tshirt'], ['langarm\\w*|longsleeve', 'langarm'], ['polo\\w*', 'polo'],
+  ['hemd\\w*|bluse\\w*', 'hemd'], ['funktionsshirt|laufshirt|sportshirt|sporttop', 'sporttop'],
+  ['pullover|pullis?\\b|strickpulli|sweater', 'pullover'], ['feinstrick\\w*|rollkragen\\w*|merino\\w*|rolli\\b', 'feinstrick'],
+  ['strickjacke\\w*|cardigan', 'strickjacke'], ['sweatshirt|sweatjacke|\\bsweat\\b', 'sweat'], ['hoodie\\w*|kapuzen\\w*', 'hoodie'], ['fleece\\w*', 'fleece'],
+  ['sakko\\w*|blazer|jackett\\w*', 'sakko'], ['smoking', 'smoking'], ['weste\\w*|gilet', 'weste'],
+  ['jeansjacke\\w*', 'jeansjacke'], ['lederjacke\\w*', 'lederjacke'], ['bomber\\w*', 'bomber'], ['uebergangsjacke\\w*|\\bjacke\\b|\\bjacken\\b', 'uebergang'],
+  ['regenjacke\\w*|regenmantel', 'regenjacke'], ['softshell\\w*', 'softshell'], ['trench\\w*', 'trench'], ['mantel|maentel|wintermantel', 'wintermantel'],
+  ['parka\\w*', 'parka'], ['daunenjacke\\w*|steppjacke\\w*|puffer\\w*', 'daune'], ['trainingsjacke\\w*', 'trainingsjacke'],
+  ['jeans', 'jeans'], ['chinos?', 'chino'], ['stoffhose\\w*|bundfaltenhose\\w*|\\bhose\\b|\\bhosen\\b', 'stoff'], ['anzughose\\w*', 'anzughose'],
+  ['jogginghose\\w*|jogger\\w*', 'jogger'], ['shorts|kurze hose|bermuda\\w*', 'shorts'], ['sporthose\\w*|laufhose\\w*|leggings', 'sporthose'], ['cargo\\w*', 'cargo'],
+  ['sneaker\\w*|turnschuh\\w*', 'sneaker'], ['laufschuh\\w*|running', 'laufschuh'], ['boots|stiefel\\w*|stiefelette\\w*', 'boots'],
+  ['chelsea ?boots|chelsea', 'chelsea'], ['loafer\\w*|slipper\\w*|mokassin\\w*', 'loafer'], ['derby\\w*|lederschuh\\w*|businessschuh\\w*', 'derby'],
+  ['oxfords?\\b|oxfordschuh\\w*', 'oxford'], ['sandale\\w*|flipflops?', 'sandalen'], ['winterstiefel\\w*|schneestiefel\\w*', 'winterstiefel'],
+  ['guertel', 'guertel'], ['\\buhr\\b|armbanduhr', 'uhr'], ['schal\\b|schals\\b|\\bschal', 'schal'], ['muetze\\w*|beanie', 'muetze'], ['handschuh\\w*', 'handschuhe'],
+  ['krawatte\\w*|schlips', 'krawatte'], ['fliege\\w*', 'fliege'], ['einstecktuch', 'einstecktuch'], ['\\bcaps?\\b|basecap\\w*|kappe\\w*', 'cap'], ['sonnenbrille\\w*', 'sonnenbrille']
+];
+var TXT_COLORS = [
+  ['dunkelblau|marineblau|marine|navy', 'navy'], ['hellblau|babyblau|eisblau', 'hellblau'], ['indigo', 'indigo'], ['denim', 'denim'],
+  ['anthrazit|dunkelgrau|graphit', 'anthrazit'], ['bordeaux|weinrot|burgund\\w*|dunkelrot', 'bordeaux'], ['camel|cognac|karamell', 'camel'],
+  ['beige|creme|ecru|offwhite', 'beige'], ['khaki|sand', 'sand'], ['oliv\\w*', 'oliv'], ['schwarz', 'schwarz'], ['weiss', 'weiss'],
+  ['hellgrau|grau|silber', 'grau'], ['braun|mokka|schoko', 'braun'], ['dunkelgruen|gruen|tanne', 'gruen'], ['lila|violett|flieder', 'lila'],
+  ['rosa|pink', 'rosa'], ['orange|rost', 'orange'], ['gelb|senf', 'gelb'], ['royalblau|blau', 'blau'], ['(^|[^a-z])rot', 'rot']
+];
+var TXT_NUM = { ein: 1, eine: 1, einen: 1, zwei: 2, drei: 3, vier: 4, fuenf: 5, sechs: 6 };
+function parseEntry(raw) {
+  var txt = raw.replace(/\s+/g, ' ').trim();
+  if (!txt) return null;
+  var n = 1, m = txt.match(/^(\d{1,2})\s*(x|×|stk\.?|stück|stueck)?\s+/i);
+  if (m) { n = Number(m[1]); txt = txt.slice(m[0].length); }
+  else {
+    var w = normQ(txt).split(' ')[0];
+    if (TXT_NUM[w]) { n = TXT_NUM[w]; txt = txt.replace(/^\S+\s+/, ''); }
+  }
+  txt = txt.replace(/^(mein|meine|meinen)\s+/i, '');
+  var q = normQ(txt), best = null;
+  TXT_TYPES.forEach(function (tt) {
+    var re = new RegExp(tt[0], 'g'), r;
+    while ((r = re.exec(q))) {
+      var end = r.index + r[0].length;
+      if (!best || end > best.end || (end === best.end && r[0].length > best.len)) best = { type: tt[1], end: end, len: r[0].length };
+      if (!r[0].length) re.lastIndex++;
+    }
+  });
+  var type = best ? best.type : '';
+  var color = '', guessed = false;
+  for (var i = 0; i < TXT_COLORS.length; i++) if (new RegExp(TXT_COLORS[i][0]).test(q)) { color = TXT_COLORS[i][1]; break; }
+  if (type === 'jeans' && /dunkl|dunkel|raw/.test(q) && (!color || color === 'navy')) color = 'indigo';
+  if (type === 'jeans' && /hell/.test(q) && (!color || color === 'hellblau')) color = 'denim';
+  if (!color) { guessed = true; color = { jeans: 'indigo', jeansjacke: 'denim', chino: 'beige', trench: 'beige', lederjacke: 'schwarz', sakko: 'navy' }[type] || 'grau'; }
+  var pattern = /gestreift|streifen|nadelstreif|ringel/.test(q) ? 'streifen' : (/kariert|karo|glencheck|hahnentritt/.test(q) ? 'karo' : (/print|bedruckt|logo|motiv/.test(q) ? 'print' : 'uni'));
+  var fav = /lieblings/.test(q), basic = /\bbasic/.test(q);
+  var clean = txt.replace(/\b(lieblings(teil|stück|stueck)?|basic)\b/gi, '').replace(/\s+/g, ' ').trim();
+  var name = n > 1 || !clean ? '' : clean.charAt(0).toUpperCase() + clean.slice(1);
+  return { raw: raw.trim(), label: clean || txt, n: Math.max(1, Math.min(10, n)), type: type, color: color, guessed: guessed, pattern: pattern, fav: fav, basic: basic, name: name.slice(0, 60) };
+}
+function parseWardrobeText(text) {
+  return String(text || '').split(/\n|,|;|\s+und\s+|\s+sowie\s+|\s\+\s|\s&\s/i).map(parseEntry).filter(Boolean);
+}
+function rowToItem(r) {
+  var it = AK.normalize({ id: uid(), name: '', type: r.type, color: r.color, pattern: r.pattern, fav: !!r.fav, basic: !!r.basic, never: false, avail: true, photo: null, wears: 0, last: null });
+  it.name = r.name || autoName(it);
+  return it;
+}
+function openTextImport() {
+  openSheet('Teile per Text hinzufügen', function (body, close) {
+    var rows = [], keepDemo = { v: false };
+    var ta = h('textarea', { id: 'txt-in', rows: '5', placeholder: 'Zum Beispiel:\nNavy Sakko\n2 weiße T-Shirts, dunkle Jeans\ngestreiftes Hemd hellblau, braune Chelsea Boots', 'aria-label': 'Teile, je Zeile oder durch Komma getrennt' });
+    var list = h('div', { class: 'stack', id: 'txt-rows', 'aria-live': 'polite' });
+    var addBtn = h('button', { class: 'btn accent block', type: 'button', id: 'txt-add', disabled: true }, ico('check'), 'Hinzufügen');
+    var aiBtn = h('button', { class: 'btn ghost', type: 'button', id: 'txt-ai', hidden: true }, ico('spark'), 'Mit Claude genauer erkennen');
+    var status = h('div', { class: 'status', 'aria-live': 'polite' });
+    var timer = null;
+    ta.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { rows = parseWardrobeText(ta.value); draw(); }, 200); });
+    function count() { return rows.filter(function (r) { return r.type; }).reduce(function (a, r) { return a + r.n; }, 0); }
+    function draw() {
+      clear(list);
+      rows.forEach(function (r, i) {
+        var preview = h('span', { class: 'txt-thumb' });
+        function updPrev() { clear(preview); if (r.type) preview.append(thumbEl(rowToItem(r), { size: 'sm' })); else preview.append(h('span', { class: 'thumb sm unknown' }, '?')); }
+        var tsel = typeSelect('txt-type-' + i, r.type, function (v) { r.type = v; updPrev(); upd(); }, 'Art wählen …');
+        tsel.setAttribute('aria-label', 'Art für „' + r.raw + '“');
+        var csel = h('select', { id: 'txt-color-' + i, 'aria-label': 'Farbe für „' + r.raw + '“' });
+        AK.COLORS.forEach(function (c) { csel.append(h('option', { value: c.id }, c.name)); });
+        csel.value = r.color;
+        csel.addEventListener('change', function () { r.color = csel.value; r.guessed = false; updPrev(); });
+        var rm = h('button', { class: 'btn ghost icon', type: 'button', 'aria-label': '„' + r.raw + '“ entfernen', onclick: function () { rows.splice(i, 1); draw(); } }, ico('x'));
+        updPrev();
+        list.append(h('div', { class: 'txt-row' + (r.type ? '' : ' bad') }, preview,
+          h('div', { class: 'txt-main' },
+            h('div', { class: 'small' }, h('b', null, (r.n > 1 ? r.n + ' × ' : '') + (r.name || r.label || r.raw)),
+              !r.type ? h('span', { class: 'warn-t' }, ' · Art nicht erkannt') : (r.guessed ? h('span', { class: 'muted' }, ' · Farbe geschätzt') : null)),
+            h('div', { class: 'pair' }, tsel, csel)), rm));
+      });
+      upd();
+    }
+    function upd() {
+      var n = count(), bad = rows.filter(function (r) { return !r.type; }).length;
+      addBtn.disabled = !n;
+      addBtn.lastChild.textContent = n ? n + (n === 1 ? ' Teil hinzufügen' : ' Teile hinzufügen') : 'Hinzufügen';
+      status.textContent = rows.length ? (bad ? bad + ' Eintrag ohne erkannte Art wird übersprungen. Wähle die Art aus.' : '') : '';
+    }
+    addBtn.addEventListener('click', function () {
+      var items = [];
+      rows.forEach(function (r) { if (!r.type) return; for (var k = 0; k < r.n; k++) items.push(rowToItem(r)); });
+      if (!items.length) return;
+      if (isDemo() && keepDemo.v) adoptDemo(true);
+      items.forEach(function (it) { Store.putItem(it); });
+      V.needsRecalc = true; close();
+      toast(items.length + (items.length === 1 ? ' Teil' : ' Teile') + ' im Schrank: ' + items.slice(0, 3).map(function (x) { return x.name; }).join(', ') + (items.length > 3 ? ' …' : ''));
+      changed();
+    });
+    /* Im Artifact: Claude liest den Text, Ergebnis wird gegen die erlaubten IDs geprüft */
+    if (IN_CLAUDE) {
+      Promise.resolve().then(function () { return window.claude.use('sample'); }).then(function (sample) {
+        if (!sample || typeof sample.json !== 'function') return;
+        aiBtn.hidden = false;
+        aiBtn.addEventListener('click', function () {
+          if (!ta.value.trim()) { toast('Schreib zuerst ein paar Teile ins Feld.'); return; }
+          aiBtn.disabled = true; status.textContent = 'Claude liest die Liste …'; status.classList.add('busy');
+          var prompt = 'Wandle diese Liste von Kleidungsstücken in JSON um. Antworte nur mit einem JSON-Array von Objekten der Form ' +
+            '{"name":"<kurzer deutscher Name>","type":"<type-ID>","color":"<color-ID>","pattern":"<pattern-ID>","count":<Anzahl>}.\n' +
+            'Erlaubte type-IDs: ' + Object.keys(AK.TYPES).map(function (k) { return k + ' (' + AK.TYPES[k].label + ')'; }).join(', ') + '\n' +
+            'Erlaubte color-IDs: ' + AK.COLORS.map(function (c) { return c.id + ' (' + c.name + ')'; }).join(', ') + '\n' +
+            'Erlaubte pattern-IDs: uni, streifen, karo, print. Nimm die nächstliegende erlaubte ID.\n\nListe:\n' + ta.value.slice(0, 4000);
+          sample.json(prompt, { modelTier: 'quick' }).then(function (arr) {
+            if (!Array.isArray(arr)) throw new Error('kein Array');
+            var got = arr.slice(0, 60).map(function (x) {
+              if (!x || typeof x !== 'object' || !AK.TYPES[x.type]) return null;
+              return { raw: String(x.name || x.type).slice(0, 60), n: Math.max(1, Math.min(10, Math.round(Number(x.count) || 1))), type: x.type,
+                color: AK.COLORS.some(function (c) { return c.id === x.color; }) ? x.color : 'grau', guessed: false,
+                pattern: AK.PATTERNS.some(function (p) { return p.id === x.pattern; }) ? x.pattern : 'uni',
+                name: String(x.name || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 60), fav: false, basic: false };
+            }).filter(Boolean);
+            if (!got.length) throw new Error('leer');
+            rows = got; draw(); status.textContent = 'Erkannt von Claude. Prüfe die Liste.';
+          }).catch(function () { status.textContent = 'Claude konnte gerade nicht helfen. Die Erkennung oben funktioniert trotzdem.'; })
+            .then(function () { aiBtn.disabled = false; status.classList.remove('busy'); });
+        });
+      }).catch(function () {});
+    }
+    body.append(
+      h('p', { class: 'muted small', style: 'margin:0' }, 'Schreib deine Teile auf, je Zeile oder durch Komma getrennt. Ankleide erkennt Art, Farbe, Muster und Anzahl. Prüfe die Vorschau und passe sie bei Bedarf an.'),
+      ta, aiBtn, status, list,
+      isDemo() ? checkbox('txt-keepdemo', 'Beispielteile behalten und meine Teile dazulegen', function () { return keepDemo.v; }, function (v) { keepDemo.v = v; }) : null,
+      h('div', { class: 'foot' }, addBtn));
+    ta.focus();
+  });
 }

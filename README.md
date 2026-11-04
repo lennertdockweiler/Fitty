@@ -35,6 +35,7 @@ Unten gibt es vier Tabs. Solange dein eigener Schrank leer ist, zeigt Ankleide e
   - Drei Outfit-Etiketten, jede mit einer Zeichnung an der Schneiderpuppe, den Teilen mit Bild, Accessoires und Warnungen. Die Begründung klappst du unter „Warum dieses Outfit?“ auf.
   - Die Vorschläge aktualisieren sich bei jeder Änderung. Sind sie gerade nicht im Bild, erscheint unten „Vorschläge ansehen“.
   - „Nochmal würfeln“ zeigt drei andere Kombinationen.
+- **Foto-Eindruck unter jeder Skizze:** In der eigenständigen Fassung erzeugt Ankleide zu jedem Vorschlag ein KI-Bild, wie das Outfit ungefähr aussieht. Daneben führen „Pinterest“ und „Google Bilder“ zu ähnlichen echten Looks im Web.
 - **Pro Outfit:**
   - **Das trage ich** zählt die Teile als getragen und legt einen Tagebucheintrag an.
   - **Merken** legt das Outfit im Tagebuch ab.
@@ -44,6 +45,7 @@ Unten gibt es vier Tabs. Solange dein eigener Schrank leer ist, zeigt Ankleide e
 
 - **Suche:** Mehrere Wörter, alle müssen passen. „blau hemd“ findet Navy-, Hell- und Indigo-Hemden, „pulli“ findet Pullover, „liebling“ deine Lieblingsteile.
 - **Filter:** Bereichs-Chips (Oberteil bis Accessoires) und Filter für Lieblinge, Basics, „Nie tragen“ und „In der Wäsche“.
+- **Mehrere Teile per Text:** Über das Listen-Symbol neben „Neu“ schreibst du zum Beispiel „Navy Sakko, 2 weiße T-Shirts, dunkle Jeans, gestreiftes Hemd“. Ankleide erkennt Art, Farbe, Muster und Anzahl und zeigt eine Vorschau mit Zeichnung, die du korrigieren kannst. Was es nicht erkennt, ist markiert. Im Artifact kann Claude die Liste genauer lesen.
 - **Ansicht:** Jedes Teil erscheint als Zeichnung in seiner Farbe und seinem Muster. Hast du ein eigenes Foto hinterlegt, siehst du das Foto.
 - **Bearbeiten-Sheet:** Name, Art, Farbe, Muster, Dresscode von/bis, Wärme, Komfort, Sporttauglichkeit, Jahreszeiten, Schalter und Foto. Löschen fragt im Sheet noch einmal nach. „Heute unbedingt tragen“ setzt das Teil als Wunschteil.
 
@@ -64,6 +66,7 @@ Unten gibt es vier Tabs. Solange dein eigener Schrank leer ist, zeigt Ankleide e
 - **Einstellungen:**
   - Speicherort und Speicherbelegung
   - Wetter (Live an/aus, Ort suchen, eigener Standort)
+  - Bilder (KI-Bild automatisch, auf Knopfdruck oder aus; Personen neutral, Herren oder Damen)
   - Vorlieben (Zahl der Bewertungen, zurücksetzen)
   - Beispielschrank und Wäsche-Automatik
   - Export und Import als JSON, alle Daten löschen
@@ -85,9 +88,16 @@ Unten gibt es vier Tabs. Solange dein eigener Schrank leer ist, zeigt Ankleide e
    - Die Kennungen `demo1` bis `demo51` bleiben fest, damit bereits übernommene Beispielschränke nicht durcheinanderkommen.
 8. **Wochenplaner:** Alle Tage haben dieselbe Temperatur. Das Oberteil vom Vortag ruht, solange es eine Alternative gibt. Hosen, Layer und Schuhe bekommen am Folgetag einen leichten Abzug.
 9. **Scan mit Claude:** nur im Artifact. Das Ergebnis wird gegen die erlaubten IDs geprüft, jeder Fehler führt still zur Eingabe per Hand.
-10. **Datensicherung:** Liegt der Schrank nur im Browser und umfasst mindestens 10 Teile, erinnert der Schrank-Tab an einen Export, wenn der letzte länger als 30 Tage her ist.
-11. **Zwei Ausgaben:** `build.js` schreibt `index.html` (vollständiges Dokument) und `dist/artifact.html` (ohne Dokumentgerüst, für claude.ai).
-12. **Branch:** Gearbeitet wird auf `claude/outfit-app-development-y6kf1s`, derselbe Stand liegt auf `ankleide-v1`. Nie auf `main`.
+10. **KI-Bilder und Web-Looks:**
+    - Die KI-Bilder kommen vom freien Dienst pollinations.ai, ohne Anmeldung. Ankleide schickt nur eine englische Beschreibung des Outfits (Art, Farbe, Muster der Teile), keine Fotos und keine persönlichen Daten.
+    - Gleiches Outfit, gleiches Bild: Der Startwert hängt am Outfit, der Browser kann das Bild zwischenspeichern.
+    - Bilder laden nacheinander. Ist der Dienst ausgelastet, versucht Ankleide es nach 11 Sekunden bis zu zweimal erneut.
+    - Pinterest und Google Bilder lassen sich nicht einbetten (keine offene Schnittstelle, Einbetten gesperrt), deshalb gibt es Links mit fertigem Suchbegriff („Navy Sakko Weiß Hemd … Outfit“).
+    - „Personen“ steht anfangs auf neutral. Die App leitet aus nichts ab, ob Herren- oder Damenbilder passen, du stellst das in den Einstellungen ein.
+11. **Text-Import:** Jede Zeile oder jeder Eintrag zwischen Kommas, „und“ oder „;“ wird ein Teil. Gibt es mehrere passende Wörter, zählt das letzte Hauptwort („Oxford-Hemd“ ist ein Hemd, „Jeansjacke“ eine Jacke). Ohne Farbangabe nimmt Ankleide eine typische Farbe und markiert sie als „geschätzt“.
+12. **Datensicherung:** Liegt der Schrank nur im Browser und umfasst mindestens 10 Teile, erinnert der Schrank-Tab an einen Export, wenn der letzte länger als 30 Tage her ist.
+13. **Zwei Ausgaben:** `build.js` schreibt `index.html` (vollständiges Dokument) und `dist/artifact.html` (ohne Dokumentgerüst, für claude.ai).
+14. **Branch:** Gearbeitet wird auf `claude/outfit-app-development-y6kf1s`, derselbe Stand liegt auf `ankleide-v1`. Nie auf `main`.
 
 ## Änderungen an der Engine
 
@@ -108,6 +118,10 @@ Alle Änderungen sind in `test3.js` abgesichert.
 ## Bekannte Grenzen
 
 - **Zeichnungen:** Sie sind Annäherungen. Schnitt, Material und Passform zeigen sie nicht, nur Art, Farbe und Muster. Eigene Fotos erscheinen in Schrank und Teilelisten, die Outfit-Zeichnung bleibt gezeichnet.
+- **KI-Bilder:**
+  - Sie sind ein ungefährer Eindruck. Das freie Modell trifft Farben und Teile meist, Schnitte und Details nicht immer, Gesichter wirken oft verzerrt. Unten rechts steht ein kleines Wasserzeichen.
+  - Der Dienst ist kostenlos, aber nicht garantiert verfügbar. Bessere Modelle bräuchten einen geheimen Schlüssel, der nicht in eine Browser-App gehört. Das ginge nur über einen kleinen Dienst auf dem Pi.
+  - Im claude.ai-Artifact gibt es keine KI-Bilder, weil dort Bilder aus dem Netz gesperrt sind. Die Links zu Pinterest und Google funktionieren dort.
 - **Live-Wetter nur in der eigenständigen Fassung:** claude.ai blockiert in Artifacts Abrufe ins Internet. Dort stellst du das Wetter selbst ein. Den eigenen Standort gibt es nur über `https` oder `localhost`, auf einem Raspberry Pi über `http` suchst du den Ort per Name.
 - **Typenliste:** Sie ist auf eine klassische Herrengarderobe zugeschnitten, Rock, Kleid oder Bluse fehlen (ergänzbar in `data.js`).
 - **Speicher im Browser:** etwa 5 MB, das reicht für rund 100 Teile mit Foto. Die Einstellungen zeigen die Belegung. Langfristig ist das Artifact (Konto-Speicher) oder ein Speicher-Dienst auf dem Pi besser.
@@ -124,9 +138,9 @@ Alle Änderungen sind in `test3.js` abgesichert.
 | `body.html` | Grundgerüst: Kopf, vier Panels, Tab-Leiste, Sheet und Toast |
 | `ui1.js` | Helfer (`h`, `ico`, `toast`, `openSheet`), Speicher (`Store`), Fotos |
 | `art.js` | Zeichnungen: jedes Teil einzeln, jedes Outfit an der Schneiderpuppe |
-| `ui2.js` | Start, Tabs, Status, Suche, Outfit-Etikett, Tragen, Merken, Vorlieben |
+| `ui2.js` | Start, Tabs, Status, Suche, Outfit-Etikett mit KI-Bild und Web-Links, Tragen, Merken, Vorlieben |
 | `ui3.js` | Tab „Heute“ mit Live-Wetter |
-| `ui4.js` | Tabs „Schrank“ und „Scan“, Bearbeiten-Sheet |
+| `ui4.js` | Tabs „Schrank“ und „Scan“, Bearbeiten-Sheet, Text-Import |
 | `ui5.js` | Tab „Mehr“ |
 | `build.js` | setzt `index.html` und `dist/artifact.html` zusammen und prüft das Skript mit `node --check` |
 | `test.js`, `test2.js` | Ausgabe-Tests der Engine aus der Übergabe (laufen ohne Fehler durch) |
@@ -163,8 +177,9 @@ Mit npm geht dasselbe über `npm test` (Engine) und `npm run test:ui` (Oberfläc
   - Business Formal bei 5 °C mit Regen, Business Casual ohne Krawatte und Jeans
   - Date mit Jogginghose, Wochenende mit Handgepäck, 10-Tage-Kapsel ohne Sportteile
   - Wunschteile („eine Jeans“, „ein Navy-Sakko“), Vorlieben, Beispielschrank, leerer Schrank, Einkaufs-Check und Lücken
-- `tests/ui-smoke.js` braucht Playwright mit Chromium. Er läuft bei 400 px und 1000 px, jeweils hell und dunkel, mit 67 Prüfungen:
-  - Zeichnungen an jedem Outfit und Teil, fünf Stufen, Aktivitäten ohne Sport
+- `tests/ui-smoke.js` braucht Playwright mit Chromium. Er läuft bei 400 px und 1000 px, jeweils hell und dunkel, mit 71 Prüfungen:
+  - Zeichnungen an jedem Outfit und Teil, KI-Bild unter der Skizze (feste Testantwort), Pinterest-Link, fünf Stufen, Aktivitäten ohne Sport
+  - Text-Import mit Vorschau, Korrektur und Übernahme; Bild-Einstellungen (aus, Herren)
   - Live-Wetter (mit fester Testantwort, ohne Netz), Morgen, Plus/Minus, Wetterlage
   - Business Formal und Casual, „Hochzeit“ hebt die Stufe, Wunschteil per Suche, Date mit Jogginghose
   - Unterwegs & Stil, Würfeln, Bewerten, Tragen, Merken
