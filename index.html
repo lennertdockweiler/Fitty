@@ -1,0 +1,2682 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#E9EDF1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1620" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%226%22%20fill%3D%22%23E3B23A%22%2F%3E%3Cpath%20d%3D%22M16%2010.5a2.6%202.6%200%201%200-2.6-2.6M16%2010.5v2.4l9.2%206.6a1.5%201.5%200%200%201-.9%202.7H7.7a1.5%201.5%200%200%201-.9-2.7L16%2012.9%22%20fill%3D%22none%22%20stroke%3D%22%23131E2B%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E">
+<title>Ankleide</title>
+<meta name="description" content="Ankleide schlägt dir Outfits aus deinem eigenen Schrank vor, passend zu Dresscode, Wetter, Weg und Aktivität.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400..700&display=swap">
+<style>
+/* ---- styles.css ---- */
+/* Layout: One-Screen-App mit Bottom-Tabs; Outfits als Etiketten mit Farbstreifen; Dresscode als Maßband */
+:root {
+  --bg: #E9EDF1; --surface: #F6F8FA; --raised: #FFFFFF; --ink: #131E2B; --muted: #586575; --line: #C6CED7;
+  --accent: #D9A21B; --accent-ink: #1B1406; --tape: #E3B23A; --tape-ink: #2A2008;
+  --ok: #24704D; --warn: #A8480F; --bad: #B3262E; --ctl: #131E2B; --ctl-ink: #F4F7FA;
+  --f-display: 'Archivo', 'Arial Narrow', Arial, sans-serif;
+  --f-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'DM Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1620; --surface: #142030; --raised: #192738; --ink: #E8EDF2; --muted: #92A0AE; --line: #263647;
+    --accent: #E3B53D; --accent-ink: #1B1406; --tape: #D9A82E; --tape-ink: #241A05;
+    --ok: #4FBF8B; --warn: #E39A5C; --bad: #F06A72; --ctl: #E8EDF2; --ctl-ink: #0D1620; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1620; --surface: #142030; --raised: #192738; --ink: #E8EDF2; --muted: #92A0AE; --line: #263647;
+  --accent: #E3B53D; --accent-ink: #1B1406; --tape: #D9A82E; --tape-ink: #241A05;
+  --ok: #4FBF8B; --warn: #E39A5C; --bad: #F06A72; --ctl: #E8EDF2; --ctl-ink: #0D1620; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  padding-block: 0 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-text-size-adjust: 100%;
+}
+.wrap { max-width: 720px; margin: 0 auto; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1, h2, h3 { margin: 0; font-weight: 700; text-wrap: balance; }
+
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 18px 0 10px; }
+.brand { font-family: var(--f-display); font-stretch: 125%; font-weight: 800; font-size: 26px; letter-spacing: .02em; text-transform: uppercase; }
+.sync { font-family: var(--f-mono); font-size: 11px; letter-spacing: .06em; color: var(--muted); text-align: right; }
+
+nav.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+}
+nav.tabs button { background: none; border: 0; padding: 8px 4px 6px; display: grid; justify-items: center; gap: 3px; color: var(--muted); font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border-radius: 4px; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); }
+nav.tabs button[aria-selected="true"] .tick { background: var(--accent); width: 28px; }
+nav.tabs .tick { height: 3px; width: 10px; background: var(--line); transition: width .2s; }
+nav.tabs svg { width: 22px; height: 22px; }
+
+.panel[hidden] { display: none; }
+.sec { margin-top: 22px; }
+.sec > .mono { display: block; margin-bottom: 8px; }
+.card { background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 14px; }
+.stack { display: grid; gap: 12px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1 1 0; min-width: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+/* Maßband */
+.tape { position: relative; background: var(--tape); color: var(--tape-ink); border-radius: 3px; display: grid; grid-template-columns: repeat(7, 1fr); overflow: hidden; box-shadow: inset 0 -2px 0 rgba(0,0,0,.12); }
+.tape button { background: none; border: 0; border-right: 1px solid rgba(42,32,8,.35); padding: 22px 0 8px; display: grid; gap: 2px; justify-items: center; color: inherit; position: relative; min-width: 0; }
+.tape button:last-child { border-right: 0; }
+.tape button::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 10px; background: currentColor; }
+.tape button::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 25%); opacity: .55; }
+.tape .n { font-family: var(--f-mono); font-weight: 500; font-size: 16px; line-height: 1; }
+.tape .l { font-size: 10px; line-height: 1.1; text-align: center; padding: 0 2px; overflow-wrap: anywhere; }
+.tape button[aria-pressed="true"] { background: var(--ctl); color: var(--accent); }
+.tape button[aria-pressed="true"]::after { opacity: 0; }
+.tape button[aria-pressed="true"]::before { height: 6px; }
+.lvl-name { font-family: var(--f-display); font-stretch: 112%; font-weight: 700; font-size: 20px; margin-top: 10px; }
+
+/* Bedienelemente */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--line); background: var(--raised); border-radius: 4px; padding: 7px 11px; font-size: 14px; min-height: 36px; display: inline-flex; align-items: center; gap: 6px; }
+.chip[aria-pressed="true"], .chip.on { background: var(--ctl); color: var(--ctl-ink); border-color: var(--ctl); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--raised); }
+.seg button { background: none; border: 0; border-right: 1px solid var(--line); padding: 9px 4px; font-size: 14px; min-width: 0; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ctl); color: var(--ctl-ink); }
+.btn { border: 1px solid var(--ctl); background: var(--ctl); color: var(--ctl-ink); border-radius: 4px; padding: 11px 16px; font-weight: 600; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn.accent { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.danger { background: transparent; color: var(--bad); border-color: var(--bad); }
+.btn.small { min-height: 36px; padding: 7px 12px; font-size: 14px; }
+.btn.block { width: 100%; font-size: 16px; min-height: 52px; }
+.btn[disabled] { opacity: .45; cursor: default; }
+.btn svg, .chip svg { width: 18px; height: 18px; flex: none; }
+input[type="text"], input[type="search"], select, textarea { width: 100%; background: var(--raised); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; min-height: 44px; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+label.field { display: grid; gap: 6px; }
+.temp { font-family: var(--f-display); font-stretch: 112%; font-weight: 800; font-size: 34px; line-height: 1; }
+.check { display: flex; gap: 10px; align-items: center; min-height: 36px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+/* Teile */
+.thumb { width: 100%; aspect-ratio: 1; border-radius: 4px; background: var(--c, #888); position: relative; overflow: hidden; display: grid; place-items: end start; border: 1px solid rgba(128,128,128,.35); }
+.thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.thumb.streifen { background-image: repeating-linear-gradient(90deg, transparent 0 7px, rgba(255,255,255,.28) 7px 9px); }
+.thumb.karo { background-image: repeating-linear-gradient(90deg, transparent 0 9px, rgba(255,255,255,.22) 9px 11px), repeating-linear-gradient(0deg, transparent 0 9px, rgba(255,255,255,.22) 9px 11px); }
+.thumb.print { background-image: radial-gradient(circle at 30% 35%, rgba(255,255,255,.35) 0 14%, transparent 15%); }
+.thumb .tl { position: relative; font-family: var(--f-mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; padding: 3px 5px; color: #fff; background: rgba(0,0,0,.55); border-radius: 0 3px 0 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.closet { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px; }
+.gcard { background: none; border: 0; padding: 0; text-align: left; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.gcard .nm { font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+.gcard.off .thumb { opacity: .45; }
+.badges { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; z-index: 1; }
+.badge { font-family: var(--f-mono); font-size: 10px; background: var(--ctl); color: var(--ctl-ink); border-radius: 3px; padding: 1px 5px; }
+.badge.star { background: var(--accent); color: var(--accent-ink); }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.sw { width: 36px; height: 36px; border-radius: 50%; border: 2px solid transparent; box-shadow: 0 0 0 1px rgba(128,128,128,.5); background: var(--c); padding: 0; }
+.sw[aria-pressed="true"] { border-color: var(--raised); box-shadow: 0 0 0 3px var(--ink); }
+
+/* Outfit-Etikett */
+.outfit { background: var(--raised); border: 1px solid var(--line); border-radius: 6px; display: grid; grid-template-columns: 14px 1fr; overflow: hidden; box-shadow: 0 1px 0 rgba(19,30,43,.05); }
+.spine { display: grid; grid-auto-rows: 1fr; }
+.spine i { background: var(--c); display: block; }
+.o-body { padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.o-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; }
+.o-title { font-family: var(--f-display); font-stretch: 112%; font-weight: 800; font-size: 20px; }
+.fit { display: grid; gap: 3px; justify-items: end; min-width: 92px; }
+.fit b { font-family: var(--f-mono); font-weight: 500; font-size: 18px; }
+.fit .bar { width: 92px; height: 8px; background: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 9.2px); position: relative; border-bottom: 2px solid var(--line); }
+.fit .bar i { position: absolute; left: 0; bottom: -2px; height: 4px; background: var(--accent); }
+.pieces { display: grid; gap: 8px; }
+.piece { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: center; }
+.piece .pn { font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 14px; }
+.notes li { padding-left: 16px; position: relative; }
+.notes li::before { content: ""; position: absolute; left: 0; top: .6em; width: 8px; height: 2px; background: var(--ok); }
+.notes li.w { color: var(--warn); }
+.notes li.w::before { background: var(--warn); }
+.acc { display: flex; flex-wrap: wrap; gap: 6px; }
+.acc span { font-size: 13px; border: 1px solid var(--line); border-radius: 3px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 6px; }
+.acc i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1px rgba(128,128,128,.5); }
+
+/* Sheet */
+.backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(8,14,22,.55); display: grid; align-items: end; }
+.sheet { background: var(--surface); border-top: 3px solid var(--accent); max-height: 92vh; overflow: auto; padding: 16px max(16px, env(safe-area-inset-left, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)); width: 100%; max-width: 720px; margin: 0 auto; border-radius: 8px 8px 0 0; }
+.sheet h2 { font-family: var(--f-display); font-stretch: 112%; font-size: 22px; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 60; background: var(--ctl); color: var(--ctl-ink); padding: 10px 16px; border-radius: 4px; font-size: 14px; max-width: calc(100vw - 32px); }
+
+/* Mehr */
+.todo { display: grid; grid-template-columns: 24px 1fr; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.todo:last-child { border-bottom: 0; }
+.dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); margin-top: 2px; }
+.dot.ok { background: var(--ok); border-color: var(--ok); }
+.matrix { display: grid; grid-template-columns: minmax(84px, 1.4fr) repeat(4, 1fr); gap: 3px; font-size: 12px; }
+.matrix .h { font-family: var(--f-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); align-self: end; text-align: center; }
+.matrix .lv { align-self: center; }
+.matrix .c { height: 26px; border-radius: 2px; background: var(--line); }
+.matrix .c.g1 { background: color-mix(in srgb, var(--accent) 55%, var(--raised)); }
+.matrix .c.g2 { background: var(--ok); }
+.verdict { font-family: var(--f-display); font-stretch: 112%; font-weight: 800; font-size: 20px; }
+.banner { border: 1px dashed var(--muted); border-radius: 6px; padding: 12px 14px; display: grid; gap: 10px; background: var(--surface); }
+.empty { text-align: center; padding: 28px 12px; color: var(--muted); }
+.dim { opacity: .55; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (min-width: 560px) { .closet { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
+
+/* ---- ui.css ---- */
+/* Ergänzungen zu styles.css: nur was die Oberfläche zusätzlich braucht. Farben ausschließlich über Tokens. */
+:root { --tape-sel: #131E2B; --tape-sel-ink: #E3B23A; --shade: rgba(19,30,43,.06); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --tape-sel: #241A05; --tape-sel-ink: #F0C75A; --shade: rgba(0,0,0,.25); }
+}
+:root[data-theme="dark"] { --tape-sel: #241A05; --tape-sel-ink: #F0C75A; --shade: rgba(0,0,0,.25); }
+
+[hidden] { display: none !important; }
+html { -webkit-tap-highlight-color: transparent; }
+header.top { max-width: 720px; margin: 0 auto; }
+.panel:focus { outline: none; }
+.vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.sec > h2.mono { margin: 0 0 8px; font-weight: 400; }
+.mono b { font-weight: 500; color: var(--ink); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Touchziele mindestens 44 px */
+.chip, .btn.small, .seg button, .check { min-height: 44px; }
+.chip { cursor: pointer; }
+.chip.static { cursor: default; }
+.chip .ct { font-family: var(--f-mono); font-size: 11px; opacity: .7; }
+.seg button { display: inline-flex; align-items: center; justify-content: center; text-align: center; line-height: 1.15; }
+nav.tabs { grid-template-columns: repeat(4, minmax(0, 168px)); justify-content: center; }
+nav.tabs .ti, nav.tabs svg { width: 22px; height: 22px; display: block; }
+.tape button { min-height: 58px; }
+.tape button[aria-pressed="true"] { background: var(--tape-sel); color: var(--tape-sel-ink); }
+.lvl-hint { margin-top: 2px; }
+
+/* Wetter */
+.tempbox { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; align-items: center; }
+.tempbox .temp { min-width: 3.6ch; font-variant-numeric: tabular-nums; }
+.tempbox .feels { grid-column: 1 / -1; }
+.range-scale { display: flex; justify-content: space-between; }
+select { appearance: auto; }
+
+/* Wunschteile */
+.mustchip { padding-right: 0; gap: 4px; background: var(--surface); }
+.mustchip .mono { font-size: 10px; }
+.mustchip button { background: none; border: 0; min-width: 40px; min-height: 40px; display: grid; place-items: center; color: var(--muted); border-radius: 4px; }
+.mustchip button svg { width: 16px; height: 16px; }
+.picks { display: grid; gap: 6px; }
+.pick { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; text-align: left; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px 6px 6px; min-height: 52px; }
+.pick[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.pick .pn { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+.pick .pn small { display: block; color: var(--muted); font-size: 12px; }
+.pick svg { width: 20px; height: 20px; }
+
+/* Ergebnisse */
+.results { scroll-margin-top: 12px; }
+.res-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.outfit .o-sub { margin-bottom: 2px; }
+.outfit .o-title { overflow-wrap: anywhere; line-height: 1.15; }
+.o-head > div:first-child { min-width: 0; }
+.fit .mono { font-size: 10px; }
+.piece .thumb { width: 52px; }
+.piece .pmeta { display: block; margin-top: 2px; }
+.tag { font-family: var(--f-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; border: 1px solid var(--accent); color: var(--ink); border-radius: 3px; padding: 0 5px; margin-left: 6px; white-space: nowrap; vertical-align: 1px; }
+.notes li.s { color: var(--muted); }
+.notes li.s::before { background: var(--muted); }
+.o-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.o-actions .btn { flex: 1 1 140px; }
+.btn.done { background: transparent; color: var(--ok); border-color: var(--ok); }
+.alert { border: 1px solid var(--warn); border-left-width: 4px; border-radius: 6px; padding: 10px 12px; background: var(--raised); }
+.alert .notes { font-size: 14px; }
+
+/* Teile-Vorschau: helle Farben bekommen dunkle Musterlinien */
+.thumb.light.streifen { background-image: repeating-linear-gradient(90deg, transparent 0 7px, rgba(0,0,0,.16) 7px 9px); }
+.thumb.light.karo { background-image: repeating-linear-gradient(90deg, transparent 0 9px, rgba(0,0,0,.13) 9px 11px), repeating-linear-gradient(0deg, transparent 0 9px, rgba(0,0,0,.13) 9px 11px); }
+.thumb.light.print { background-image: radial-gradient(circle at 30% 35%, rgba(0,0,0,.18) 0 14%, transparent 15%); }
+.thumb { max-width: 100%; }
+.thumb.sm { width: 40px; }
+.thumb.lg { width: 112px; }
+.gcard { cursor: pointer; }
+.gcard .nm small { display: block; color: var(--muted); font-size: 12px; }
+.gcard:focus-visible { outline-offset: 3px; border-radius: 4px; }
+
+/* Schrank */
+.toolbar { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.chips.scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 3px 2px; margin: -3px -2px; scroll-padding-inline: 2px; }
+.chips.scroll::-webkit-scrollbar { display: none; }
+.chips.scroll .chip { flex: none; }
+.banner .row .btn { flex: 1 1 auto; }
+.countline { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; min-height: 44px; }
+
+/* Formular im Sheet */
+.form { display: grid; gap: 16px; }
+.form .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field > span:first-child, .flabel { font-size: 13px; font-weight: 600; }
+.photo-row { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: center; }
+.photo-row .stack { gap: 8px; }
+.filebtn { position: relative; }
+.filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.confirm { border: 1px solid var(--bad); border-radius: 6px; padding: 12px; display: grid; gap: 10px; }
+.sheet .foot { position: sticky; bottom: calc(-20px - env(safe-area-inset-bottom, 0px)); background: var(--surface); padding: 10px 0 0; margin-top: 4px; display: grid; gap: 8px; }
+.sheet .sw[aria-pressed="true"] { border-color: var(--surface); }
+.sw { width: 44px; height: 44px; }
+
+/* Scan */
+.scan-preview { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: start; }
+.status { font-size: 14px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.status.busy::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.verdict.t-great, .verdict.t-good { color: var(--ok); }
+.verdict.t-low { color: var(--warn); }
+.verdict.t-none { color: var(--bad); }
+.bars { display: grid; gap: 6px; }
+.bars .br { display: grid; grid-template-columns: minmax(96px, 9.5em) 1fr 3.2em; gap: 10px; align-items: center; font-size: 13px; }
+.bars .track { height: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 2px; position: relative; overflow: hidden; }
+.bars .track i { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+.bars .track i.alt { background: var(--muted); }
+.bars .v { font-family: var(--f-mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Listen mit Vorschau */
+.plist { display: grid; gap: 8px; }
+.prow { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; min-height: 44px; }
+.prow .pn { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+.prow .pn small { display: block; color: var(--muted); font-size: 12px; }
+.prow .end { font-family: var(--f-mono); font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
+.prow .rank { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.prow.ranked { grid-template-columns: 1.8em 40px 1fr; }
+.prow label.check { min-height: 40px; }
+.minibars { display: grid; gap: 3px; margin-top: 5px; }
+.minibars span { display: grid; grid-template-columns: 6.4em 1fr; gap: 6px; align-items: center; font-family: var(--f-mono); font-size: 10px; letter-spacing: .04em; color: var(--muted); }
+.minibars .track { height: 5px; background: var(--surface); border-radius: 2px; position: relative; overflow: hidden; }
+.minibars .track i { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+.minibars .track i.alt { background: var(--muted); }
+
+/* Kompakte Outfit-Zeile (Kapsel, Planer, Tagebuch) */
+.mini { display: grid; grid-template-columns: 8px 1fr; gap: 12px; align-items: stretch; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.mini:last-child { border-bottom: 0; }
+.mini .mspine { display: grid; grid-auto-rows: 1fr; border-radius: 2px; overflow: hidden; min-height: 40px; }
+.mini .mspine i { background: var(--c); display: block; }
+.mini .mbody { min-width: 0; display: grid; gap: 4px; }
+.mini .mnames { line-height: 1.35; overflow-wrap: anywhere; }
+.mini .mact { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+/* Mehr */
+.subnav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding: 8px 0; margin-top: 4px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.matrix .c { display: block; }
+.matrix-wrap { overflow-x: auto; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 14px; border-radius: 2px; background: var(--line); display: inline-block; }
+.legend i.g1 { background: color-mix(in srgb, var(--accent) 55%, var(--raised)); }
+.legend i.g2 { background: var(--ok); }
+.kpi { display: flex; gap: 22px; flex-wrap: wrap; align-items: baseline; }
+.kpi div { display: grid; }
+.kpi b { font-family: var(--f-display); font-stretch: 112%; font-weight: 800; font-size: 30px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.daylist { display: grid; gap: 10px; }
+.day h3 { font-family: var(--f-display); font-stretch: 112%; font-size: 17px; }
+textarea { min-height: 120px; font-family: var(--f-mono); font-size: 12px; line-height: 1.4; resize: vertical; }
+.sync.err { color: var(--warn); }
+hr.sep { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+@media (min-width: 560px) {
+  .photo-row, .scan-preview { grid-template-columns: 140px 1fr; }
+  .thumb.lg { width: 140px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Ankleide</div>
+  <div class="sync" id="sync" role="status" aria-live="polite"></div>
+</header>
+<main class="wrap">
+  <section id="p-today" class="panel" role="tabpanel" aria-labelledby="t-today" tabindex="-1"></section>
+  <section id="p-closet" class="panel" role="tabpanel" aria-labelledby="t-closet" tabindex="-1" hidden></section>
+  <section id="p-scan" class="panel" role="tabpanel" aria-labelledby="t-scan" tabindex="-1" hidden></section>
+  <section id="p-more" class="panel" role="tabpanel" aria-labelledby="t-more" tabindex="-1" hidden></section>
+</main>
+<nav class="tabs" role="tablist" aria-label="Bereiche">
+  <button type="button" role="tab" id="t-today" data-tab="today" aria-controls="p-today" aria-selected="true"><span class="ti" data-ico="sun"></span><span>Heute</span><i class="tick"></i></button>
+  <button type="button" role="tab" id="t-closet" data-tab="closet" aria-controls="p-closet" aria-selected="false" tabindex="-1"><span class="ti" data-ico="hanger"></span><span>Schrank</span><i class="tick"></i></button>
+  <button type="button" role="tab" id="t-scan" data-tab="scan" aria-controls="p-scan" aria-selected="false" tabindex="-1"><span class="ti" data-ico="cam"></span><span>Scan</span><i class="tick"></i></button>
+  <button type="button" role="tab" id="t-more" data-tab="more" aria-controls="p-more" aria-selected="false" tabindex="-1"><span class="ti" data-ico="more"></span><span>Mehr</span><i class="tick"></i></button>
+</nav>
+<div id="sheet-root"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script>
+/* ---- data.js ---- */
+/* ===== Ankleide: Daten (Typen, Farben, Dresscode, Beispiel-Schrank) ===== */
+var AK = (typeof AK !== 'undefined') ? AK : {};
+
+AK.LEVELS = [
+  { id: 0, name: 'Sportlich', hint: 'Training, Laufen, Outdoor-Sport' },
+  { id: 1, name: 'Entspannt', hint: 'Zuhause, Spaziergang, Couch-Tag' },
+  { id: 2, name: 'Casual', hint: 'Alltag, Freunde, Uni, Café' },
+  { id: 3, name: 'Smart Casual', hint: 'Date, Restaurant, Feier unter Freunden' },
+  { id: 4, name: 'Business Casual', hint: 'Büro, Kundentermin, Vorstellungsgespräch' },
+  { id: 5, name: 'Business / Cocktail', hint: 'Anzug, Hochzeit, Empfang' },
+  { id: 6, name: 'Black Tie', hint: 'Gala, Oper, Abendveranstaltung' }
+];
+
+AK.SLOTS = [
+  { id: 'top', name: 'Oberteil' },
+  { id: 'mid', name: 'Layer' },
+  { id: 'outer', name: 'Jacke / Mantel' },
+  { id: 'bottom', name: 'Hose' },
+  { id: 'shoes', name: 'Schuhe' },
+  { id: 'acc', name: 'Accessoires' }
+];
+
+/* Typen: fmin/fmax = Dresscode-Spanne, w = Wärme, c = Komfort 1-3, water = wetterfest */
+AK.TYPES = {
+  tshirt:      { label: 'T-Shirt',        slot: 'top',    fmin: 1, fmax: 3, w: 1,   c: 3 },
+  langarm:     { label: 'Langarmshirt',   slot: 'top',    fmin: 1, fmax: 3, w: 1.5, c: 3 },
+  polo:        { label: 'Polo',           slot: 'top',    fmin: 2, fmax: 4, w: 1.2, c: 3 },
+  hemd:        { label: 'Hemd',           slot: 'top',    fmin: 3, fmax: 6, w: 1.5, c: 2 },
+  sporttop:    { label: 'Sport-Shirt',    slot: 'top',    fmin: 0, fmax: 1, w: 0.8, c: 3 },
+
+  pullover:    { label: 'Pullover',       slot: 'mid',    fmin: 1, fmax: 4, w: 3,   c: 3 },
+  feinstrick:  { label: 'Feinstrick',     slot: 'mid',    fmin: 2, fmax: 5, w: 2.5, c: 3 },
+  strickjacke: { label: 'Strickjacke',    slot: 'mid',    fmin: 2, fmax: 4, w: 2.5, c: 3 },
+  sweat:       { label: 'Sweatshirt',     slot: 'mid',    fmin: 1, fmax: 2, w: 3,   c: 3 },
+  hoodie:      { label: 'Hoodie',         slot: 'mid',    fmin: 0, fmax: 2, w: 3,   c: 3 },
+  fleece:      { label: 'Fleece',         slot: 'mid',    fmin: 0, fmax: 2, w: 3,   c: 3 },
+  sakko:       { label: 'Sakko',          slot: 'mid',    fmin: 3, fmax: 5, w: 2,   c: 2 },
+  smoking:     { label: 'Smoking',        slot: 'mid',    fmin: 6, fmax: 6, w: 2,   c: 2 },
+  weste:       { label: 'Weste',          slot: 'mid',    fmin: 3, fmax: 5, w: 1,   c: 2 },
+
+  jeansjacke:  { label: 'Jeansjacke',     slot: 'outer',  fmin: 1, fmax: 3, w: 2,   c: 3 },
+  lederjacke:  { label: 'Lederjacke',     slot: 'outer',  fmin: 2, fmax: 4, w: 2.5, c: 2 },
+  bomber:      { label: 'Bomber',         slot: 'outer',  fmin: 1, fmax: 3, w: 2.5, c: 3 },
+  uebergang:   { label: 'Übergangsjacke', slot: 'outer',  fmin: 1, fmax: 4, w: 2,   c: 3 },
+  regenjacke:  { label: 'Regenjacke',     slot: 'outer',  fmin: 0, fmax: 3, w: 2,   c: 3, water: true },
+  softshell:   { label: 'Softshell',      slot: 'outer',  fmin: 0, fmax: 3, w: 3,   c: 3, water: true },
+  trench:      { label: 'Trenchcoat',     slot: 'outer',  fmin: 3, fmax: 5, w: 3.5, c: 2, water: true, long: true },
+  wintermantel:{ label: 'Wintermantel',   slot: 'outer',  fmin: 3, fmax: 6, w: 6,   c: 2, long: true },
+  parka:       { label: 'Parka',          slot: 'outer',  fmin: 1, fmax: 3, w: 6,   c: 3, water: true },
+  daune:       { label: 'Daunenjacke',    slot: 'outer',  fmin: 0, fmax: 3, w: 6,   c: 3, water: true },
+  trainingsjacke:{ label: 'Trainingsjacke', slot: 'outer', fmin: 0, fmax: 2, w: 2,  c: 3 },
+
+  jeans:       { label: 'Jeans',          slot: 'bottom', fmin: 1, fmax: 4, w: 2,   c: 2 },
+  chino:       { label: 'Chino',          slot: 'bottom', fmin: 2, fmax: 4, w: 1.5, c: 2 },
+  stoff:       { label: 'Stoffhose',      slot: 'bottom', fmin: 4, fmax: 5, w: 1.5, c: 2 },
+  anzughose:   { label: 'Anzughose',      slot: 'bottom', fmin: 5, fmax: 6, w: 1.5, c: 2 },
+  jogger:      { label: 'Jogger',         slot: 'bottom', fmin: 0, fmax: 2, w: 1.5, c: 3 },
+  shorts:      { label: 'Shorts',         slot: 'bottom', fmin: 1, fmax: 2, w: 0.5, c: 3 },
+  sporthose:   { label: 'Sporthose',      slot: 'bottom', fmin: 0, fmax: 1, w: 1,   c: 3 },
+  cargo:       { label: 'Cargohose',      slot: 'bottom', fmin: 1, fmax: 3, w: 1.5, c: 3 },
+
+  sneaker:     { label: 'Sneaker',        slot: 'shoes',  fmin: 1, fmax: 3, w: 0.5, c: 3 },
+  laufschuh:   { label: 'Laufschuhe',     slot: 'shoes',  fmin: 0, fmax: 1, w: 0.5, c: 3 },
+  boots:       { label: 'Boots',          slot: 'shoes',  fmin: 2, fmax: 4, w: 1.5, c: 2, water: true },
+  chelsea:     { label: 'Chelsea Boots',  slot: 'shoes',  fmin: 3, fmax: 5, w: 1,   c: 2, leather: true },
+  loafer:      { label: 'Loafer',         slot: 'shoes',  fmin: 3, fmax: 5, w: 0.5, c: 2, leather: true },
+  derby:       { label: 'Derby',          slot: 'shoes',  fmin: 4, fmax: 5, w: 0.5, c: 2, leather: true },
+  oxford:      { label: 'Oxford',         slot: 'shoes',  fmin: 5, fmax: 6, w: 0.5, c: 1, leather: true },
+  sandalen:    { label: 'Sandalen',       slot: 'shoes',  fmin: 1, fmax: 2, w: 0,   c: 3 },
+  winterstiefel:{ label: 'Winterstiefel', slot: 'shoes',  fmin: 0, fmax: 3, w: 2,   c: 2, water: true },
+
+  guertel:     { label: 'Gürtel',         slot: 'acc',    fmin: 1, fmax: 6, w: 0,   c: 3, acc: 'belt' },
+  uhr:         { label: 'Uhr',            slot: 'acc',    fmin: 0, fmax: 6, w: 0,   c: 3, acc: 'watch' },
+  schal:       { label: 'Schal',          slot: 'acc',    fmin: 0, fmax: 6, w: 1,   c: 3, acc: 'cold' },
+  muetze:      { label: 'Mütze',          slot: 'acc',    fmin: 0, fmax: 3, w: 1,   c: 3, acc: 'cold' },
+  handschuhe:  { label: 'Handschuhe',     slot: 'acc',    fmin: 0, fmax: 5, w: 1,   c: 3, acc: 'cold' },
+  krawatte:    { label: 'Krawatte',       slot: 'acc',    fmin: 4, fmax: 6, w: 0,   c: 2, acc: 'tie' },
+  fliege:      { label: 'Fliege',         slot: 'acc',    fmin: 5, fmax: 6, w: 0,   c: 2, acc: 'tie' },
+  einstecktuch:{ label: 'Einstecktuch',   slot: 'acc',    fmin: 4, fmax: 6, w: 0,   c: 3, acc: 'pocket' },
+  cap:         { label: 'Cap',            slot: 'acc',    fmin: 0, fmax: 2, w: 0,   c: 3, acc: 'sun' },
+  sonnenbrille:{ label: 'Sonnenbrille',   slot: 'acc',    fmin: 0, fmax: 4, w: 0,   c: 3, acc: 'sun' }
+};
+
+/* Zusatzeigenschaften je Typ: s = Saisons (leer = ganzjährig), a = Sport-Eignung 0-2, hike = wandertauglich */
+AK.EXTRA = {
+  tshirt: { a: 1 }, langarm: { a: 1 }, sporttop: { a: 2 },
+  sweat: { a: 1 }, hoodie: { a: 1, s: ['fruehling', 'herbst', 'winter'] },
+  fleece: { a: 1, hike: 1, s: ['fruehling', 'herbst', 'winter'] },
+  trainingsjacke: { a: 2 }, regenjacke: { a: 1, hike: 1 },
+  softshell: { a: 1, hike: 1, s: ['fruehling', 'herbst', 'winter'] },
+  daune: { s: ['herbst', 'winter'] }, parka: { s: ['herbst', 'winter'] }, wintermantel: { s: ['herbst', 'winter'] },
+  trench: { s: ['fruehling', 'herbst'] }, jeansjacke: { s: ['fruehling', 'sommer', 'herbst'] },
+  bomber: { s: ['fruehling', 'herbst'] }, uebergang: { s: ['fruehling', 'herbst'] }, lederjacke: { s: ['fruehling', 'herbst'] },
+  jogger: { a: 1 }, sporthose: { a: 2 }, shorts: { a: 1, s: ['fruehling', 'sommer'] }, cargo: { hike: 1 },
+  sneaker: { a: 1 }, laufschuh: { a: 2, hike: 1 }, boots: { hike: 1, s: ['fruehling', 'herbst', 'winter'] },
+  sandalen: { s: ['sommer'] }, winterstiefel: { hike: 1, s: ['winter'] },
+  schal: { s: ['herbst', 'winter'] }, muetze: { s: ['herbst', 'winter'] }, handschuhe: { s: ['winter'] },
+  cap: { s: ['fruehling', 'sommer', 'herbst'] }
+};
+Object.keys(AK.EXTRA).forEach(function (k) {
+  for (var p in AK.EXTRA[k]) AK.TYPES[k][p] = AK.EXTRA[k][p];
+});
+
+AK.SEASONS = [
+  { id: 'fruehling', name: 'Frühling' }, { id: 'sommer', name: 'Sommer' },
+  { id: 'herbst', name: 'Herbst' }, { id: 'winter', name: 'Winter' }
+];
+AK.seasonFor = function (temp, month) {
+  if (temp <= 3) return 'winter';
+  if (temp >= 21) return 'sommer';
+  if (month === 12 || month <= 2) return 'winter';
+  if (month <= 5) return 'fruehling';
+  if (month <= 8) return 'sommer';
+  return 'herbst';
+};
+
+/* Aktivitäten: f = Zusatzfaktoren, sport = Sportkleidung nötig, hike = festes Schuhwerk, level = passender Dresscode */
+AK.ACTIVITIES = [
+  { id: 'alltag', name: 'Alltag' },
+  { id: 'buero', name: 'Büro / Sitzen', f: ['sit'] },
+  { id: 'stadt', name: 'Stadtbummel', f: ['walk'] },
+  { id: 'reise', name: 'Reisetag', f: ['sit', 'walk'] },
+  { id: 'tanzen', name: 'Party / Tanzen', f: ['indoor'] },
+  { id: 'tennis', name: 'Tennis', sport: 1, level: 0 },
+  { id: 'joggen', name: 'Joggen', sport: 1, level: 0 },
+  { id: 'gym', name: 'Gym', sport: 1, level: 0 },
+  { id: 'wandern', name: 'Wandern', hike: 1, level: 0, f: ['walk'] }
+];
+AK.ACT = {};
+AK.ACTIVITIES.forEach(function (a) { AK.ACT[a.id] = a; });
+
+/* fehlende Felder eines gespeicherten Teils ergänzen */
+AK.normalize = function (x) {
+  var t = AK.TYPES[x.type];
+  if (!t) return x;
+  if (x.slot == null) x.slot = t.slot;
+  if (x.fmin == null) x.fmin = t.fmin;
+  if (x.fmax == null) x.fmax = t.fmax;
+  if (x.w == null) x.w = t.w;
+  if (x.c == null) x.c = t.c;
+  if (x.a == null) x.a = t.a || 0;
+  if (!x.s) x.s = (t.s || []).slice();
+  if (x.water == null) x.water = !!t.water;
+  if (!x.pattern) x.pattern = 'uni';
+  if (x.avail == null) x.avail = true;
+  if (x.wears == null) x.wears = 0;
+  return x;
+};
+
+/* Farben: fam = neutral | earth | cool | bright */
+AK.COLORS = [
+  { id: 'schwarz',  name: 'Schwarz',   hex: '#1c1c1f', fam: 'neutral' },
+  { id: 'anthrazit',name: 'Anthrazit', hex: '#3b4047', fam: 'neutral' },
+  { id: 'grau',     name: 'Grau',      hex: '#8b9097', fam: 'neutral' },
+  { id: 'weiss',    name: 'Weiß',      hex: '#f3f3f0', fam: 'neutral' },
+  { id: 'navy',     name: 'Navy',      hex: '#1f2f55', fam: 'neutral' },
+  { id: 'indigo',   name: 'Indigo',    hex: '#2c3e5e', fam: 'neutral' },
+  { id: 'denim',    name: 'Denim hell',hex: '#7d9cc0', fam: 'neutral' },
+  { id: 'beige',    name: 'Beige',     hex: '#d9c7a3', fam: 'earth' },
+  { id: 'sand',     name: 'Sand',      hex: '#c3b08a', fam: 'earth' },
+  { id: 'camel',    name: 'Camel',     hex: '#b58850', fam: 'earth' },
+  { id: 'braun',    name: 'Braun',     hex: '#6b4a2f', fam: 'earth' },
+  { id: 'oliv',     name: 'Oliv',      hex: '#5f6b3a', fam: 'earth' },
+  { id: 'bordeaux', name: 'Bordeaux',  hex: '#6d1f2f', fam: 'earth' },
+  { id: 'blau',     name: 'Blau',      hex: '#3b6fb6', fam: 'cool' },
+  { id: 'hellblau', name: 'Hellblau',  hex: '#a7c5e6', fam: 'cool' },
+  { id: 'gruen',    name: 'Grün',      hex: '#2f7a4d', fam: 'cool' },
+  { id: 'lila',     name: 'Lila',      hex: '#6c4a8f', fam: 'cool' },
+  { id: 'rot',      name: 'Rot',       hex: '#b3262e', fam: 'bright' },
+  { id: 'orange',   name: 'Orange',    hex: '#d9772b', fam: 'bright' },
+  { id: 'gelb',     name: 'Gelb',      hex: '#e2b93b', fam: 'bright' },
+  { id: 'rosa',     name: 'Rosa',      hex: '#e3a1b4', fam: 'bright' }
+];
+
+AK.PATTERNS = [
+  { id: 'uni', name: 'Uni' },
+  { id: 'streifen', name: 'Streifen' },
+  { id: 'karo', name: 'Karo' },
+  { id: 'print', name: 'Print / Logo' }
+];
+
+AK.TRANSPORT = [
+  { id: 'auto', name: 'Auto' },
+  { id: 'oepnv', name: 'Bus & Bahn' },
+  { id: 'rad', name: 'Fahrrad' },
+  { id: 'fuss', name: 'Zu Fuß' }
+];
+
+AK.FACTORS = [
+  { id: 'walk', name: 'Viel Laufen' },
+  { id: 'sit', name: 'Lange sitzen' },
+  { id: 'cool_evening', name: 'Abends kühler' },
+  { id: 'indoor', name: 'Meist drinnen' },
+  { id: 'impress', name: 'Eindruck wichtig' }
+];
+
+AK.WEATHER_PRESETS = [
+  { name: 'Frost', temp: -2, rain: false, snow: false, wind: false, sun: false },
+  { name: 'Kühl', temp: 8, rain: false, snow: false, wind: false, sun: false },
+  { name: 'Nass', temp: 10, rain: true, snow: false, wind: true, sun: false },
+  { name: 'Mild', temp: 16, rain: false, snow: false, wind: false, sun: false },
+  { name: 'Warm', temp: 23, rain: false, snow: false, wind: false, sun: true },
+  { name: 'Heiß', temp: 31, rain: false, snow: false, wind: false, sun: true }
+];
+
+/* Beispiel-Schrank (ohne Fotos), wird nur angezeigt, solange der eigene Schrank leer ist */
+(function () {
+  var n = 0;
+  function g(type, name, color, o) {
+    o = o || {};
+    var t = AK.TYPES[type];
+    n++;
+    return {
+      id: 'demo' + n, demo: true, name: name, type: type, slot: t.slot, color: color,
+      pattern: o.pattern || 'uni', fmin: o.fmin != null ? o.fmin : t.fmin, fmax: o.fmax != null ? o.fmax : t.fmax,
+      w: o.w != null ? o.w : t.w, c: o.c != null ? o.c : t.c, water: o.water != null ? o.water : !!t.water,
+      fav: !!o.fav, never: !!o.never, basic: !!o.basic, avail: true, photo: null, wears: o.wears || 0, last: null,
+      a: t.a || 0, s: (t.s || []).slice()
+    };
+  }
+  AK.DEMO = [
+    g('tshirt', 'Weißes T-Shirt', 'weiss', { basic: true }),
+    g('tshirt', 'Graues T-Shirt', 'grau', { basic: true }),
+    g('langarm', 'Navy Langarmshirt', 'navy', { basic: true }),
+    g('polo', 'Polo Piqué', 'navy', { fav: true }),
+    g('hemd', 'Weißes Hemd', 'weiss', { basic: true, fmax: 6 }),
+    g('hemd', 'Hellblaues Hemd', 'hellblau', { basic: true }),
+    g('hemd', 'Oxford-Hemd', 'blau', { pattern: 'streifen', fmin: 2, fmax: 4 }),
+    g('sporttop', 'Laufshirt', 'schwarz'),
+    g('pullover', 'Grauer Wollpullover', 'grau', { fav: true, basic: true }),
+    g('pullover', 'Oliver Strickpullover', 'oliv'),
+    g('feinstrick', 'Feinstrick-Rollkragen', 'anthrazit', { fmax: 5 }),
+    g('hoodie', 'Hoodie Anthrazit', 'anthrazit'),
+    g('sakko', 'Navy Sakko', 'navy', { fav: true, basic: true }),
+    g('sakko', 'Graues Sakko', 'grau', { pattern: 'karo' }),
+    g('smoking', 'Smoking', 'schwarz'),
+    g('shorts', 'Shorts Beige', 'beige'),
+    g('uebergang', 'Beige Übergangsjacke', 'beige'),
+    g('lederjacke', 'Lederjacke', 'schwarz', { fav: true }),
+    g('regenjacke', 'Regenjacke', 'schwarz'),
+    g('wintermantel', 'Wintermantel', 'anthrazit', { fmin: 3, fmax: 6 }),
+    g('parka', 'Parka', 'oliv'),
+    g('jeans', 'Dunkle Jeans', 'indigo', { fav: true, basic: true, fmax: 4 }),
+    g('jeans', 'Helle Jeans', 'denim', { fmax: 2 }),
+    g('chino', 'Chino Beige', 'beige', { basic: true }),
+    g('chino', 'Chino Navy', 'navy'),
+    g('stoff', 'Stoffhose Grau', 'grau'),
+    g('anzughose', 'Anzughose Schwarz', 'schwarz'),
+    g('jogger', 'Jogger Schwarz', 'schwarz'),
+    g('sporthose', 'Laufhose', 'schwarz'),
+    g('sneaker', 'Weiße Sneaker', 'weiss', { fav: true, basic: true, fmax: 3 }),
+    g('sneaker', 'Schwarze Sneaker', 'schwarz'),
+    g('laufschuh', 'Laufschuhe', 'grau'),
+    g('boots', 'Braune Boots', 'braun', { water: true }),
+    g('chelsea', 'Chelsea Boots', 'braun'),
+    g('derby', 'Derby Schwarz', 'schwarz'),
+    g('oxford', 'Oxford Schwarz', 'schwarz'),
+    g('guertel', 'Gürtel Braun', 'braun', { basic: true }),
+    g('guertel', 'Gürtel Schwarz', 'schwarz', { basic: true }),
+    g('uhr', 'Uhr', 'grau', { basic: true }),
+    g('schal', 'Wollschal', 'grau'),
+    g('muetze', 'Mütze', 'schwarz'),
+    g('krawatte', 'Krawatte Navy', 'navy'),
+    g('fliege', 'Fliege Schwarz', 'schwarz'),
+    g('sonnenbrille', 'Sonnenbrille', 'schwarz')
+  ];
+})();
+
+if (typeof module !== 'undefined') module.exports = AK;
+;
+/* ---- engine.js ---- */
+/* ===== Ankleide: Kern der Outfit-Engine (Bewertung und Kombination) ===== */
+(function (AK) {
+  var COLOR = {};
+  AK.COLORS.forEach(function (c) { COLOR[c.id] = c; });
+  function fam(id) { return COLOR[id] ? COLOR[id].fam : 'neutral'; }
+
+  function mulberry(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function has(arr, x) { return arr && arr.indexOf(x) >= 0; }
+
+  /* gefühlte Temperatur */
+  function allF(ctx) { return (ctx.factors || []).concat((AK.ACT[ctx.activity] || {}).f || []); }
+  function effTemp(ctx) {
+    var w = ctx.weather, t = w.temp, f = allF(ctx);
+    if (w.wind) t -= 3;
+    if (w.rain) t -= 1;
+    if (w.snow) t -= 1;
+    if (w.sun) t += 2;
+    if (has(f, 'cool_evening')) t -= 4;
+    if (has(f, 'indoor')) t += 3;
+    if (ctx.transport === 'auto') t += 3;
+    return t;
+  }
+  /* benötigter Wärmewert für Oberkörper-Schichten */
+  function needFor(t) { return Math.max(0.8, Math.min(11, 1 + (26 - t) * 0.33)); }
+
+  function daysSince(iso, today) {
+    if (!iso) return 999;
+    var a = Date.parse(iso), b = Date.parse(today || new Date().toISOString().slice(0, 10));
+    if (isNaN(a) || isNaN(b)) return 999;
+    return Math.round((b - a) / 86400000);
+  }
+
+  function dist(it, level) {
+    return level < it.fmin ? it.fmin - level : (level > it.fmax ? level - it.fmax : 0);
+  }
+  function formFit(d) { return d === 0 ? 1 : (d === 1 ? 0.6 : (d === 2 ? 0.25 : 0)); }
+
+  /* Einzelbewertung eines Teils im Kontext */
+  function itemScore(it, ctx, E) {
+    var t = AK.TYPES[it.type] || {};
+    var s = formFit(dist(it, ctx.level));
+    var act = AK.ACT[ctx.activity] || {};
+    var f = (ctx.factors || []).concat(act.f || []);
+    if (ctx.season && it.s && it.s.length && it.s.indexOf(ctx.season) < 0) s -= 0.4;
+    var ath = it.a || 0;
+    if (act.sport) {
+      if (it.slot === 'top' || it.slot === 'bottom' || it.slot === 'shoes') s -= ath >= 2 ? 0 : (ath === 1 ? 0.2 : 0.45);
+      else if (it.slot === 'mid' || it.slot === 'outer') s -= ath >= 1 ? 0 : 0.3;
+    }
+    if (act.hike) {
+      if (it.slot === 'shoes') s -= t.hike ? 0 : 0.4;
+      if (it.slot === 'bottom') s -= it.type === 'jeans' ? 0.25 : (t.hike || ath >= 1 ? 0 : 0.1);
+      if (it.slot === 'top' && it.type === 'hemd') s -= 0.25;
+    }
+    if (it.fav) s += has(f, 'impress') ? 0.2 : 0.1;
+    var ds = daysSince(it.last, ctx.today);
+    if (ds <= 1) s -= 0.3; else if (ds <= 3) s -= 0.12;
+    if (ctx.transport === 'rad') {
+      if (t.long) s -= 0.45;
+      if (it.type === 'oxford') s -= 0.2;
+      else if (t.leather) s -= 0.08;
+      if (it.type === 'sandalen') s -= 0.2;
+    } else if (ctx.transport === 'oepnv' && t.long) s -= 0.05;
+    var comfort = it.c || t.c || 2;
+    if ((ctx.transport === 'fuss' || has(f, 'walk')) && it.slot === 'shoes') s -= (3 - comfort) * 0.22;
+    if (has(f, 'sit') && (it.slot === 'top' || it.slot === 'bottom')) s -= (3 - comfort) * 0.1;
+    if (E.snow && it.slot === 'shoes' && !it.water) s -= 0.15;
+    return s;
+  }
+
+  function colorAdj(c, ctx) {
+    var base = [c.top, c.mid, c.outer, c.bottom].filter(Boolean);
+    var cl = base.concat([c.shoes]).map(function (x) { return x.color; });
+    var bold = ctx.boldness == null ? 1 : ctx.boldness;
+    var adj = 0;
+    var br = cl.filter(function (x) { return fam(x) === 'bright'; }).length;
+    if (br >= 2) adj -= bold === 2 ? 0.12 : 0.4;
+    else if (br === 1) adj += bold === 2 ? 0.08 : (bold === 0 ? -0.1 : 0);
+    var cb = base.map(function (x) { return x.color; });
+    if (has(cb, 'navy') && has(cb, 'schwarz')) adj -= 0.18;
+    if (has(cl, 'braun') && has(cl, 'schwarz')) adj -= 0.12;
+    if (c.top.color === c.bottom.color && ['schwarz', 'weiss', 'grau', 'anthrazit'].indexOf(c.top.color) < 0) adj -= 0.08;
+    if (c.outer && c.outer.type === 'jeansjacke' && c.bottom.type === 'jeans' && c.outer.color === c.bottom.color) adj -= 0.2;
+    var pat = base.filter(function (x) { return x.pattern && x.pattern !== 'uni'; }).length;
+    if (pat >= 2) adj -= bold === 2 ? 0.1 : 0.28;
+    var cool = cl.filter(function (x) { return fam(x) === 'cool'; }).length;
+    var earthy = cl.filter(function (x) { return x === 'oliv' || x === 'bordeaux' || x === 'camel'; }).length;
+    if (cool && earthy && bold < 2) adj -= 0.06;
+    var allNeutral = cl.every(function (x) { return fam(x) === 'neutral' || fam(x) === 'earth'; });
+    if (allNeutral) adj += 0.04;
+    return adj;
+  }
+
+  function scoreCombo(c, ctx, E) {
+    var L = ctx.level, pen = 0, bonus = 0;
+    var W = { top: 1.2, mid: 0.8, outer: 0.8, bottom: 1.2, shoes: 1.1 };
+    var s = 0, ws = 0;
+    ['top', 'mid', 'outer', 'bottom', 'shoes'].forEach(function (k) {
+      if (c[k]) { s += E.is[c[k].id] * W[k]; ws += W[k]; }
+    });
+    var item = s / ws;
+    var ins = (c.top ? c.top.w : 0) + (c.mid ? c.mid.w : 0) + (c.outer ? c.outer.w : 0);
+    var diff = ins - E.need;
+    var wea = Math.max(0, diff < 0 ? 1 - 0.2 * (-diff) : 1 - 0.1 * diff);
+    if (E.need > 4.3 && !c.outer) pen += ins < E.need - 0.8 ? 0.45 : 0.1;
+    if (E.temp >= 23 && c.outer && !(E.rain && c.outer.water)) pen += 0.35;
+    if (E.temp >= 26 && c.mid) pen += (c.mid.type === 'sakko' || c.mid.type === 'smoking') ? 0.05 : 0.25;
+    if (E.rain) {
+      var wp = (c.outer && c.outer.water) || (c.mid && c.mid.water);
+      if (!wp) pen += ctx.transport === 'auto' ? 0.08 : (ctx.transport === 'oepnv' ? 0.2 : 0.35);
+    }
+    if (E.snow && !c.shoes.water) pen += 0.3;
+    if (E.temp >= 24) pen += Math.max(-0.05, (c.bottom.w - 1) * 0.1);
+    if (c.bottom.type === 'shorts' && E.temp < 18) pen += 0.5;
+    if (c.shoes.type === 'sandalen' && E.temp < 16) pen += 0.5;
+    if (L >= 5) {
+      var m = c.mid && (c.mid.type === 'sakko' || c.mid.type === 'smoking');
+      if (!m) pen += 0.6;
+      if (L === 6 && !(c.mid && c.mid.type === 'smoking')) pen += 0.4;
+      if (c.top.type !== 'hemd') pen += 0.2;
+    } else if (L === 4 && c.mid && c.mid.type === 'sakko') bonus += 0.06;
+    if (L <= 5 && c.mid && c.mid.type === 'smoking') pen += 1;
+    var total = item * 0.55 + wea * 0.25 + 0.2 - pen + bonus + colorAdj(c, ctx) + E.rand() * 0.03;
+    return { total: total, ins: ins };
+  }
+
+  /* Wunschteile (Muss) in Slots auflösen */
+  function resolveMust(W, ctx) {
+    var forced = {}, warns = [], used = {};
+    (ctx.must || []).forEach(function (m) {
+      var list = [];
+      if (m.kind === 'item') {
+        var it = m.item || W.filter(function (x) { return x.id === m.id; })[0];
+        if (it) list = [it];
+      } else if (m.kind === 'type') {
+        // optional mit Farbe, z. B. „ein Navy-Sakko“: {kind:'type', type:'sakko', color:'navy'}
+        list = W.filter(function (x) { return x.type === m.type && (!m.color || x.color === m.color) && x.avail !== false && !x.never; });
+        if (!list.length) {
+          var cn = m.color ? (AK.COLORS.filter(function (c) { return c.id === m.color; })[0] || { name: m.color }).name : '';
+          warns.push('Du hast kein Teil vom Typ ' + (AK.TYPES[m.type] ? AK.TYPES[m.type].label : m.type) + (cn ? ' in ' + cn : '') + ' im Schrank.');
+          return;
+        }
+      }
+      if (!list.length) return;
+      var slot = list[0].slot;
+      if (slot === 'acc') {
+        forced.acc = (forced.acc || []).concat(list.slice(0, m.kind === 'item' ? 1 : 1));
+        return;
+      }
+      if (forced[slot]) {
+        var prevNames = forced[slot].map(function (x) { return x.name; }).join(', ');
+        var same = m.kind === 'item' && forced[slot].some(function (x) { return x.id === list[0].id; });
+        if (!same) warns.push('Zwei Wunschteile für ' + AK.SLOTS.filter(function (s) { return s.id === slot; })[0].name + ' (' + prevNames + ' und ' + list[0].name + '). Ich nehme das zuerst gewählte.');
+        return;
+      }
+      forced[slot] = list;
+    });
+    return { forced: forced, warns: warns };
+  }
+
+  /* Alle sinnvollen Kombinationen bewerten */
+  AK.enumerate = function (W, ctx, o) {
+    o = o || {};
+    var cap = o.cap || 8;
+    var temp = effTemp(ctx);
+    var E = {
+      temp: temp, need: needFor(temp), rain: !!ctx.weather.rain, snow: !!ctx.weather.snow,
+      is: {}, rand: mulberry((ctx.seed || 1) * 7919 + 13)
+    };
+    var mr = resolveMust(W, ctx);
+    var forced = mr.forced;
+    var pool = W.filter(function (x) {
+      if (x.avail === false || x.never) return false;
+      if (ctx.onlyBasics && !x.basic) return false;
+      return true;
+    });
+    // Teile aus dem Wunschfeld immer zulassen
+    Object.keys(forced).forEach(function (k) {
+      forced[k].forEach(function (f) { if (pool.indexOf(f) < 0) pool.push(f); });
+    });
+    pool.forEach(function (x) { E.is[x.id] = itemScore(x, ctx, E); });
+    var relaxed = {};
+    function candidates(slot, optional) {
+      if (forced[slot]) {
+        // Wunsch nach einer Art: alle passenden Teile zulassen, das beste zuerst
+        return forced[slot].slice().sort(function (a, b) { return E.is[b.id] - E.is[a.id]; }).slice(0, cap);
+      }
+      var base = pool.filter(function (x) { return x.slot === slot; });
+      var list = base.filter(function (x) { return dist(x, ctx.level) <= 1; });
+      if (!list.length && !optional) { list = base.filter(function (x) { return dist(x, ctx.level) <= 2; }); if (list.length) relaxed[slot] = true; }
+      list.sort(function (a, b) { return E.is[b.id] - E.is[a.id]; });
+      return list.slice(0, cap);
+    }
+    var tops = candidates('top'), bottoms = candidates('bottom'), shoes = candidates('shoes');
+    var mids = candidates('mid', true), outers = candidates('outer', true);
+    var res = { combos: [], warns: mr.warns.slice(), relaxed: relaxed, E: E, forced: forced };
+    if (!tops.length || !bottoms.length || !shoes.length) {
+      res.missing = [];
+      if (!tops.length) res.missing.push('top');
+      if (!bottoms.length) res.missing.push('bottom');
+      if (!shoes.length) res.missing.push('shoes');
+      return res;
+    }
+    var midOpts = forced.mid ? mids : [null].concat(mids);
+    var outOpts = forced.outer ? outers : [null].concat(outers);
+    for (var a = 0; a < tops.length; a++)
+      for (var b = 0; b < bottoms.length; b++)
+        for (var s = 0; s < shoes.length; s++)
+          for (var m = 0; m < midOpts.length; m++)
+            for (var u = 0; u < outOpts.length; u++) {
+              var c = { top: tops[a], mid: midOpts[m], outer: outOpts[u], bottom: bottoms[b], shoes: shoes[s] };
+              var r = scoreCombo(c, ctx, E);
+              res.combos.push({ c: c, total: r.total, ins: r.ins });
+            }
+    res.combos.sort(function (x, y) { return y.total - x.total; });
+    return res;
+  };
+
+  /* Drei verschiedene Vorschläge auswählen */
+  AK.pickDiverse = function (combos, n, avoidKeys) {
+    var chosen = [];
+    function key(c) { return [c.top.id, c.bottom.id, c.shoes.id].join('|'); }
+    function diffCount(a, b) {
+      var d = 0;
+      ['top', 'bottom', 'shoes'].forEach(function (k) { if (a[k].id !== b[k].id) d++; });
+      if ((a.outer && a.outer.id) !== (b.outer && b.outer.id)) d += 0.5;
+      return d;
+    }
+    [2, 1.5, 1, 0.5].forEach(function (need) {
+      for (var i = 0; i < combos.length && chosen.length < n; i++) {
+        var x = combos[i];
+        if (avoidKeys && avoidKeys.indexOf(key(x.c)) >= 0) continue;
+        var ok = chosen.every(function (y) { return diffCount(x.c, y.c) >= need; });
+        if (ok && chosen.indexOf(x) < 0) chosen.push(x);
+      }
+    });
+    return chosen;
+  };
+  AK.comboKey = function (c) { return [c.top.id, c.bottom.id, c.shoes.id].join('|'); };
+  AK._int = { effTemp: effTemp, needFor: needFor, fam: fam, dist: dist, daysSince: daysSince, has: has, allF: allF };
+})(typeof AK !== 'undefined' ? AK : (global.AK = require('./data.js')));
+;
+/* ---- engine2.js ---- */
+/* ===== Ankleide: Accessoires, Begründungen, Einkaufs-Check, Lückenanalyse ===== */
+(function (AK) {
+  var I = AK._int;
+  var COLORNAME = {};
+  AK.COLORS.forEach(function (c) { COLORNAME[c.id] = c.name; });
+  function cname(id) { return COLORNAME[id] || id; }
+  function leatherFam(col) {
+    if (col === 'braun' || col === 'camel' || col === 'bordeaux') return 'brown';
+    if (col === 'schwarz' || col === 'anthrazit') return 'black';
+    return 'other';
+  }
+  function slotName(id) { return AK.SLOTS.filter(function (s) { return s.id === id; })[0].name; }
+
+  function pickAcc(pool, kind, ctx, pref) {
+    var list = pool.filter(function (x) {
+      var t = AK.TYPES[x.type];
+      return t && t.acc === kind && I.dist(x, ctx.level) === 0;
+    });
+    if (pref) list = list.filter(pref).concat(list.filter(function (x) { return !pref(x); }));
+    list.sort(function (a, b) { return (b.fav ? 1 : 0) - (a.fav ? 1 : 0); });
+    return list.length ? list : [];
+  }
+
+  AK.buildOutfit = function (combo, ctx, W, info) {
+    var c = combo.c, E = info.E, L = ctx.level, w = ctx.weather;
+    var out = { top: c.top, mid: c.mid, outer: c.outer, bottom: c.bottom, shoes: c.shoes, acc: [] };
+    var warns = [], notes = [], softs = [];
+    var pool = W.filter(function (x) {
+      return x.slot === 'acc' && x.avail !== false && !x.never && !(ctx.onlyBasics && !x.basic);
+    });
+    var forcedAcc = (info.forced.acc || []).slice();
+    function addAcc(it) {
+      if (it && out.acc.indexOf(it) < 0) out.acc.push(it);
+    }
+    forcedAcc.forEach(function (x) {
+      if (I.dist(x, L) > 0) warns.push(x.name + ' passt eigentlich nicht zu Stufe ' + AK.LEVELS[L].name + ', ist aber wie gewünscht dabei.');
+      addAcc(x);
+    });
+    function kindTaken(kind) {
+      return out.acc.some(function (x) { return AK.TYPES[x.type].acc === kind; });
+    }
+    // Gürtel
+    var belted = ['jeans', 'chino', 'stoff', 'anzughose', 'cargo'].indexOf(c.bottom.type) >= 0;
+    // Zum Smoking (Black Tie) gehört kein Gürtel
+    if (belted && L >= 2 && L < 6 && !kindTaken('belt')) {
+      var sf = leatherFam(c.shoes.color);
+      var belts = pickAcc(pool, 'belt', ctx, function (x) { return sf === 'other' ? true : leatherFam(x.color) === sf; });
+      if (belts.length && (sf === 'other' || leatherFam(belts[0].color) === sf)) addAcc(belts[0]);
+      else if (L >= 3) softs.push('Ein Gürtel in der Farbe der Schuhe (' + cname(c.shoes.color) + ') fehlt noch.');
+    }
+    // Krawatte, Fliege, Einstecktuch
+    if (c.top.type === 'hemd') {
+      if (L === 6 && !kindTaken('tie')) {
+        var bow = pool.filter(function (x) { return x.type === 'fliege'; });
+        if (bow.length) addAcc(bow[0]); else softs.push('Zu Black Tie gehört eine Fliege, im Schrank ist keine.');
+      } else if (L === 5 && !kindTaken('tie')) {
+        var ties = pickAcc(pool, 'tie', ctx, function (x) { return x.color !== c.top.color && (c.top.pattern === 'uni' || x.pattern === 'uni'); });
+        if (ties.length) addAcc(ties[0]);
+      }
+      if (L >= 5 && !kindTaken('pocket')) {
+        var pk = pickAcc(pool, 'pocket', ctx);
+        if (pk.length) addAcc(pk[0]);
+      }
+    }
+    // Kälte
+    var t = E.temp;
+    if (t < 6 && !kindTaken('cold')) {
+      var sc = pool.filter(function (x) { return x.type === 'schal' && I.dist(x, L) === 0; });
+      if (sc.length) addAcc(sc[0]); else softs.push('Bei der Kälte wäre ein Schal gut.');
+    }
+    if (t < 3) {
+      var mu = pool.filter(function (x) { return x.type === 'muetze' && I.dist(x, L) === 0; });
+      if (mu.length) addAcc(mu[0]);
+    }
+    if (t < 0) {
+      var hs = pool.filter(function (x) { return x.type === 'handschuhe' && I.dist(x, L) === 0; });
+      if (hs.length) addAcc(hs[0]);
+    }
+    // Sonne
+    if (w.sun && w.temp >= 16 && !w.rain && L <= 4) {
+      var sg = pool.filter(function (x) { return x.type === 'sonnenbrille'; });
+      if (sg.length) addAcc(sg[0]);
+    }
+    if (w.sun && w.temp >= 22 && !w.rain && L <= 2) {
+      var cp = pool.filter(function (x) { return x.type === 'cap'; });
+      if (cp.length) addAcc(cp[0]);
+    }
+    // Uhr
+    if (!kindTaken('watch')) {
+      var wt = pickAcc(pool, 'watch', ctx);
+      if (wt.length) addAcc(wt[0]);
+    }
+
+    /* ---- Begründungen ---- */
+    var main = ['top', 'mid', 'outer', 'bottom', 'shoes'].map(function (k) { return out[k]; }).filter(Boolean);
+    function isWished(x) {
+      return (ctx.must || []).some(function (m) { return (m.kind === 'item' && (m.id === x.id || (m.item && m.item.id === x.id))) || (m.kind === 'type' && m.type === x.type && (!m.color || m.color === x.color)); });
+    }
+    var off = main.filter(function (x) { return I.dist(x, L) > 0; });
+    if (!off.length) notes.push('Alle Teile passen zu „' + AK.LEVELS[L].name + '“.');
+    else off.forEach(function (x) {
+      if ((AK.ACT[ctx.activity] || {}).sport) return;
+      warns.push(x.name + ' ist für „' + AK.LEVELS[L].name + '“ ' + (L > x.fmax ? 'eher zu leger' : 'eher zu elegant') + (isWished(x) ? ', bleibt aber wie gewünscht drin.' : ', ist hier ein Kompromiss.'));
+    });
+    if (L === 6 && !(out.mid && out.mid.type === 'smoking')) softs.push('Zu Black Tie gehört ein Smoking, im Schrank ist keiner.');
+    var diff = combo.ins - E.need;
+    var feels = Math.round(E.temp);
+    if (Math.abs(diff) <= 1.2) notes.push('Wärme passt zu gefühlten ' + feels + ' °C.');
+    else if (diff < 0) warns.push('Bei gefühlten ' + feels + ' °C könnte es etwas kühl werden. Eine wärmere Schicht wäre besser.');
+    else notes.push('Eher warm bei gefühlten ' + feels + ' °C' + ((out.mid || out.outer) ? ', die oberste Schicht lässt sich ausziehen.' : '.'));
+    if (w.rain || w.snow) {
+      var wp = [out.outer, out.mid].filter(function (x) { return x && x.water; })[0];
+      if (wp) notes.push('Wetterfest durch ' + wp.name + '.');
+      else warns.push('Kein wetterfestes Teil dabei. Ein Schirm oder eine andere Jacke wäre sinnvoll.');
+      if (w.snow && !c.shoes.water) warns.push('Die Schuhe sind nicht für Schnee gedacht.');
+    }
+    if (ctx.transport === 'rad') {
+      if (out.outer && AK.TYPES[out.outer.type].long) warns.push('Ein langer Mantel ist auf dem Rad unpraktisch.');
+      if (L >= 5) warns.push('Auf dem Rad wird ein Anzug schnell unbequem.');
+    }
+    var walky = ctx.transport === 'fuss' || I.has(I.allF(ctx), 'walk');
+    if (walky && (c.shoes.c || 2) >= 3) notes.push('Bequeme Schuhe für viel Laufen.');
+    if (walky && (c.shoes.c || 2) <= 1) warns.push('Die Schuhe sind nicht auf lange Strecken ausgelegt.');
+    var act = AK.ACT[ctx.activity] || {};
+    if (act.sport) {
+      main.forEach(function (x) {
+        if ((x.slot === 'top' || x.slot === 'bottom' || x.slot === 'shoes') && (x.a || 0) < 2) warns.push(x.name + ' ist für ' + act.name + ' nur bedingt geeignet.');
+        else if ((x.slot === 'mid' || x.slot === 'outer') && !(x.a >= 1)) warns.push(x.name + ' ist für ' + act.name + ' unpraktisch.');
+      });
+      if (L > 1) warns.push('Für ' + act.name + ' passt die Stufe „Sportlich“ am besten.');
+      else if (!warns.length) notes.push('Alles sporttauglich für ' + act.name + '.');
+    }
+    if (act.hike && !AK.TYPES[c.shoes.type].hike) warns.push('Zum Wandern fehlt festes Schuhwerk.');
+    if (ctx.season) {
+      var offS = main.filter(function (x) { return x.s && x.s.length && x.s.indexOf(ctx.season) < 0; });
+      offS.forEach(function (x) { warns.push(x.name + ' ist eigentlich kein ' + AK.SEASONS.filter(function (s) { return s.id === ctx.season; })[0].name + '-Teil.'); });
+    }
+    if (ctx.transport === 'oepnv' && (out.mid || out.outer)) notes.push('Schichten lassen sich in Bus und Bahn schnell ausziehen.');
+    var cols = [];
+    main.forEach(function (x) { if (cols.indexOf(x.color) < 0) cols.push(x.color); });
+    var brights = cols.filter(function (x) { return I.fam(x) === 'bright'; });
+    notes.push('Farben: ' + cols.map(cname).join(', ') + (brights.length === 1 ? ' (Akzent: ' + cname(brights[0]) + ')' : '') + '.');
+    var wished = main.concat(out.acc).filter(isWished);
+    if (wished.length) notes.unshift('Wunschteile drin: ' + wished.map(function (x) { return x.name; }).join(', ') + '.');
+    var favs = main.filter(function (x) { return x.fav; });
+    if (favs.length) notes.push('Mit Lieblingsteil: ' + favs.map(function (x) { return x.name; }).join(', ') + '.');
+
+    return {
+      items: out, score: Math.min(99, Math.max(5, Math.round((combo.total - 0.25) / 0.9 * 100))),
+      notes: notes, warns: warns, softs: softs, key: AK.comboKey(c), feels: feels
+    };
+  };
+
+  AK.suggest = function (W, ctx, opts) {
+    opts = opts || {};
+    var info = AK.enumerate(W, ctx, { cap: opts.cap || 8 });
+    var res = { outfits: [], warns: info.warns.slice(), total: info.combos.length, missing: null };
+    if (info.missing) {
+      res.missing = info.missing.map(slotName);
+      return res;
+    }
+    Object.keys(info.relaxed).forEach(function (k) {
+      res.warns.push('Für „' + slotName(k) + '“ passt nichts exakt zu Stufe ' + AK.LEVELS[ctx.level].name + '. Ich nehme das Nächstbeste.');
+    });
+    var picked = AK.pickDiverse(info.combos, opts.n || 3, opts.avoid);
+    res.outfits = picked.map(function (p) { return AK.buildOutfit(p, ctx, W, info); });
+    return res;
+  };
+
+  /* Einkaufs-Check: wie gut lässt sich ein Teil mit dem Schrank kombinieren? */
+  AK.shopCheck = function (W, item, today) {
+    var it = {}; for (var k in item) it[k] = item[k];
+    it.id = it.id || 'scan'; it.avail = true; it.never = false;
+    var base = W.filter(function (x) { return x.id !== it.id; });
+    if (it.slot === 'acc') return { n: null, tier: 'acc', verdict: 'Accessoires lassen sich meist leicht ergänzen.', byLevel: {}, partners: [] };
+    var weathers = [
+      { temp: 4, rain: false, snow: false, wind: false, sun: false },
+      { temp: 15, rain: false, snow: false, wind: false, sun: false },
+      { temp: 25, rain: false, snow: false, wind: false, sun: true }
+    ];
+    var byLevel = {}, n = 0, seen = {}, partnerCount = {};
+    for (var L = it.fmin; L <= it.fmax; L++) {
+      byLevel[L] = 0;
+      weathers.forEach(function (wt) {
+        var ctx = { level: L, weather: wt, transport: 'oepnv', factors: [], must: [{ kind: 'item', item: it }], boldness: 1, seed: 1, today: today };
+        var info = AK.enumerate(base.concat([it]), ctx, { cap: 6 });
+        info.combos.forEach(function (cb, i) {
+          if (cb.total < 0.85) return;
+          var key = L + '|' + AK.comboKey(cb.c) + '|' + (cb.c.mid ? cb.c.mid.id : '') + (cb.c.outer ? cb.c.outer.id : '');
+          if (seen[key]) return;
+          seen[key] = 1; n++; byLevel[L]++;
+          ['top', 'mid', 'outer', 'bottom', 'shoes'].forEach(function (s) {
+            var p = cb.c[s];
+            if (p && p.id !== it.id) partnerCount[p.id] = (partnerCount[p.id] || 0) + 1;
+          });
+        });
+      });
+    }
+    var partners = Object.keys(partnerCount).sort(function (a, b) { return partnerCount[b] - partnerCount[a]; }).slice(0, 6)
+      .map(function (id) { return base.filter(function (x) { return x.id === id; })[0]; }).filter(Boolean);
+    var tier = n === 0 ? 'none' : (n < 6 ? 'low' : (n < 40 ? 'good' : 'great'));
+    var verdict = { none: 'Passt aktuell zu fast nichts in deinem Schrank.', low: 'Nur schwer kombinierbar. Dir fehlen passende Partner.',
+      good: 'Gut kombinierbar mit mehreren Teilen.', great: 'Sehr vielseitig und mit vielen Teilen kombinierbar.' }[tier];
+    return { n: n, tier: tier, verdict: verdict, byLevel: byLevel, partners: partners };
+  };
+
+  /* Lückenanalyse: Basics-Checkliste und Abdeckung nach Anlass und Wetter */
+  AK.gaps = function (W, today) {
+    var av = W.filter(function (x) { return x.avail !== false && !x.never; });
+    function any(f) { return av.some(f); }
+    var dark = ['indigo', 'navy', 'schwarz', 'anthrazit'];
+    var basics = [
+      { id: 'hemd-w', name: 'Weißes Hemd', why: 'Basis für Business, Dates und Anzug.', have: any(function (x) { return x.type === 'hemd' && x.color === 'weiss'; }) },
+      { id: 'hemd-b', name: 'Hellblaues Hemd', why: 'Passt zu fast jedem Sakko und jeder Hose.', have: any(function (x) { return x.type === 'hemd' && x.color === 'hellblau'; }) },
+      { id: 'jeans', name: 'Dunkle Jeans', why: 'Von Casual bis Smart Casual einsetzbar.', have: any(function (x) { return x.type === 'jeans' && dark.indexOf(x.color) >= 0; }) },
+      { id: 'chino', name: 'Chino', why: 'Die Brücke zwischen Jeans und Stoffhose.', have: any(function (x) { return x.type === 'chino'; }) },
+      { id: 'sakko', name: 'Sakko in Navy oder Grau', why: 'Hebt jedes Outfit eine Stufe an.', have: any(function (x) { return x.type === 'sakko' && (x.color === 'navy' || x.color === 'grau' || x.color === 'anthrazit'); }) },
+      { id: 'tee', name: 'Zwei Basic-T-Shirts (Weiß, Grau oder Schwarz)', why: 'Grundlage für Layering im Alltag.', have: av.filter(function (x) { return x.type === 'tshirt' && ['weiss', 'grau', 'schwarz'].indexOf(x.color) >= 0; }).length >= 2 },
+      { id: 'strick', name: 'Pullover oder Feinstrick in Neutral', why: 'Mittlere Schicht für kühle Tage.', have: any(function (x) { return (x.type === 'pullover' || x.type === 'feinstrick') && I.fam(x.color) === 'neutral'; }) },
+      { id: 'sneaker', name: 'Weiße Sneaker', why: 'Funktionieren zu fast allem unter Business.', have: any(function (x) { return x.type === 'sneaker' && x.color === 'weiss'; }) },
+      { id: 'leder-b', name: 'Braune Lederschuhe', why: 'Für Smart Casual und Business Casual.', have: any(function (x) { return ['chelsea', 'loafer', 'derby', 'oxford', 'boots'].indexOf(x.type) >= 0 && x.color === 'braun'; }) },
+      { id: 'leder-s', name: 'Schwarze Lederschuhe', why: 'Pflicht für Anzug und Black Tie.', have: any(function (x) { return ['chelsea', 'loafer', 'derby', 'oxford'].indexOf(x.type) >= 0 && x.color === 'schwarz'; }) },
+      { id: 'regen', name: 'Regenjacke', why: 'Für Rad, Bahn und Spaziergang bei Regen.', have: any(function (x) { return x.slot === 'outer' && x.water && x.w <= 3.5; }) },
+      { id: 'warm', name: 'Warme Winterjacke oder Mantel', why: 'Für Tage unter 5 °C.', have: any(function (x) { return x.slot === 'outer' && x.w >= 5; }) },
+      { id: 'belt', name: 'Gürtel in Braun und Schwarz', why: 'Muss zur Farbe der Schuhe passen.', have: any(function (x) { return x.type === 'guertel' && x.color === 'braun'; }) && any(function (x) { return x.type === 'guertel' && x.color === 'schwarz'; }) }
+    ];
+    var cols = [
+      { name: 'Kühl', w: { temp: 8, rain: false, snow: false, wind: false, sun: false } },
+      { name: 'Mild', w: { temp: 16, rain: false, snow: false, wind: false, sun: false } },
+      { name: 'Warm', w: { temp: 25, rain: false, snow: false, wind: false, sun: true } },
+      { name: 'Regen', w: { temp: 10, rain: true, snow: false, wind: true, sun: false } }
+    ];
+    var cells = AK.LEVELS.map(function (lv) {
+      return cols.map(function (col) {
+        var ctx = { level: lv.id, weather: col.w, transport: 'oepnv', factors: [], must: [], boldness: 1, seed: 1, today: today };
+        var info = AK.enumerate(av, ctx, { cap: 5 });
+        if (info.missing || !info.combos.length) return 0;
+        var best = info.combos[0].total;
+        return best >= 0.85 ? 2 : (best >= 0.6 ? 1 : 0);
+      });
+    });
+    return { basics: basics, matrix: { levels: AK.LEVELS, cols: cols.map(function (c) { return c.name; }), cells: cells } };
+  };
+})(typeof AK !== 'undefined' ? AK : (global.AK = require('./data.js')));
+;
+/* ---- engine3.js ---- */
+/* ===== Ankleide: Staples (Vielseitigkeit und Nutzung) und Kapselgarderobe fürs Gepäck ===== */
+(function (AK) {
+  var MAIN = ['top', 'mid', 'outer', 'bottom', 'shoes'];
+  function usable(W) { return W.filter(function (x) { return x.avail !== false && !x.never; }); }
+  function key(c) { return MAIN.map(function (s) { return c[s] ? c[s].id : '-'; }).join('|'); }
+
+  /* Welche Teile tauchen in den besten Outfits über viele Anlässe und Wetterlagen auf? */
+  AK.staples = function (W, today) {
+    var av = usable(W), counts = {}, runs = 0;
+    var weathers = [
+      { temp: 8, rain: false, snow: false, wind: false, sun: false },
+      { temp: 15, rain: false, snow: false, wind: false, sun: false },
+      { temp: 24, rain: false, snow: false, wind: false, sun: true }
+    ];
+    [1, 2, 3, 4].forEach(function (L) {
+      weathers.forEach(function (wt) {
+        var ctx = { level: L, weather: wt, transport: 'oepnv', factors: [], must: [], boldness: 1, seed: 1, today: today };
+        var info = AK.enumerate(av, ctx, { cap: 6 });
+        if (info.missing) return;
+        runs++;
+        info.combos.slice(0, 25).forEach(function (cb, i) {
+          MAIN.forEach(function (s) { var p = cb.c[s]; if (p) counts[p.id] = (counts[p.id] || 0) + (25 - i); });
+        });
+      });
+    });
+    var max = 1, maxW = 0;
+    Object.keys(counts).forEach(function (k) { if (counts[k] > max) max = counts[k]; });
+    av.forEach(function (x) { if ((x.wears || 0) > maxW) maxW = x.wears || 0; });
+    var rows = av.filter(function (x) { return x.slot !== 'acc'; }).map(function (x) {
+      var v = (counts[x.id] || 0) / max, wn = maxW > 0 ? (x.wears || 0) / maxW : 0;
+      return { item: x, vers: v, wearsN: wn, score: maxW > 0 ? 0.65 * v + 0.35 * wn : v };
+    });
+    rows.sort(function (a, b) { return b.score - a.score; });
+    var worn = av.filter(function (x) { return (x.wears || 0) > 0; }).sort(function (a, b) { return b.wears - a.wears; }).slice(0, 5);
+    var sleepers = rows.filter(function (r) { return r.vers >= 0.35 && (r.item.wears || 0) <= 1 && maxW >= 3; }).slice(0, 4);
+    return { rows: rows, worn: worn, sleepers: sleepers, hasUsage: maxW > 0 };
+  };
+
+  /* Kapselgarderobe: wenige Teile, möglichst viele gute Outfits */
+  AK.capsule = function (W, o) {
+    o = o || {};
+    var days = Math.max(1, Math.min(21, o.days || 3)), luggage = o.luggage || 'hand';
+    var levels = (o.levels && o.levels.length) ? o.levels : [2, 3];
+    // Reine Sportteile (a = 2, fmax <= 1) nur einpacken, wenn Sport geplant ist:
+    // Sport-Aktivität oder Stufe „Sportlich“; beim Wandern nur wandertaugliche (z. B. Laufschuhe).
+    var act = AK.ACT[o.activity] || {};
+    var sporty = !!act.sport || levels.indexOf(0) >= 0;
+    var av = usable(W).filter(function (x) {
+      if (!((x.a || 0) >= 2 && x.fmax <= 1)) return true;
+      if (sporty) return true;
+      return !!(act.hike && (AK.TYPES[x.type] || {}).hike);
+    });
+    var tday = o.temp != null ? o.temp : 16, rain = !!o.rain;
+    var weathers = [
+      { temp: tday, rain: false, snow: false, wind: false, sun: tday >= 20 },
+      { temp: tday - 6, rain: false, snow: false, wind: false, sun: false }
+    ];
+    if (rain) weathers.push({ temp: tday - 2, rain: true, snow: false, wind: true, sun: false });
+    function mk(L, wt) {
+      return { level: L, weather: wt, transport: 'oepnv', factors: [], must: [], boldness: 1, seed: 1, today: o.today, activity: o.activity, season: o.season };
+    }
+    var cands = {};
+    levels.forEach(function (L) {
+      weathers.forEach(function (wt) {
+        var info = AK.enumerate(av, mk(L, wt), { cap: 8 });
+        if (info.missing) return;
+        info.combos.slice(0, 40).forEach(function (cb) {
+          if (cb.total < 0.75) return;
+          var k = L + '#' + key(cb.c);
+          if (!cands[k] || cands[k].total < cb.total) cands[k] = { c: cb.c, total: cb.total };
+        });
+      });
+    });
+    var list = Object.keys(cands).map(function (k) { return cands[k]; });
+    var caps = luggage === 'hand'
+      ? { top: Math.min(5, Math.max(2, Math.ceil(days / 2) + 1)), mid: 2, outer: 1, bottom: days > 5 ? 3 : 2, shoes: 2, acc: 3 }
+      : { top: Math.min(8, Math.max(3, days)), mid: 3, outer: 2, bottom: 4, shoes: 3, acc: 5 };
+    var pool = {};
+    list.forEach(function (cd) { MAIN.forEach(function (s) { var p = cd.c[s]; if (p) pool[p.id] = p; }); });
+    var poolArr = Object.keys(pool).map(function (k) { return pool[k]; });
+    var chosen = {}, count = { top: 0, mid: 0, outer: 0, bottom: 0, shoes: 0 };
+    function prog() {
+      var g = 0;
+      list.forEach(function (cd) {
+        var need = MAIN.map(function (s) { return cd.c[s]; }).filter(Boolean);
+        var inn = need.filter(function (x) { return chosen[x.id]; }).length;
+        var fr = inn / need.length;
+        g += fr * fr * fr * cd.total;
+      });
+      return g;
+    }
+    for (var step = 0; step < 40; step++) {
+      var base = prog(), best = null, bestGain = 1e-9;
+      for (var i = 0; i < poolArr.length; i++) {
+        var p = poolArr[i];
+        if (chosen[p.id] || count[p.slot] >= caps[p.slot]) continue;
+        chosen[p.id] = p;
+        var gain = prog() - base;
+        delete chosen[p.id];
+        if (gain > bestGain) { bestGain = gain; best = p; }
+      }
+      if (!best) break;
+      chosen[best.id] = best; count[best.slot]++;
+    }
+    var pieces = { top: [], mid: [], outer: [], bottom: [], shoes: [], acc: [] };
+    Object.keys(chosen).forEach(function (k) { pieces[chosen[k].slot].push(chosen[k]); });
+    // Accessoires
+    var accPool = av.filter(function (x) { return x.slot === 'acc'; });
+    var accN = 0;
+    function addAcc(it) { if (it && accN < caps.acc && pieces.acc.indexOf(it) < 0) { pieces.acc.push(it); accN++; } }
+    var anyBelted = pieces.bottom.some(function (b) { return ['jeans', 'chino', 'stoff', 'anzughose', 'cargo'].indexOf(b.type) >= 0; });
+    var shoeCols = pieces.shoes.map(function (s) { return s.color; });
+    if (anyBelted) {
+      var wantBrown = shoeCols.indexOf('braun') >= 0 || shoeCols.indexOf('camel') >= 0;
+      var wantBlack = shoeCols.indexOf('schwarz') >= 0;
+      accPool.filter(function (x) { return x.type === 'guertel'; }).forEach(function (b) {
+        if ((wantBrown && b.color === 'braun') || (wantBlack && b.color === 'schwarz')) addAcc(b);
+      });
+    }
+    addAcc(accPool.filter(function (x) { return x.type === 'uhr'; })[0]);
+    if (tday - 6 < 8) addAcc(accPool.filter(function (x) { return x.type === 'schal'; })[0]);
+    if (tday >= 18) addAcc(accPool.filter(function (x) { return x.type === 'sonnenbrille'; })[0]);
+    if (levels.indexOf(5) >= 0 || levels.indexOf(6) >= 0) {
+      addAcc(accPool.filter(function (x) { return x.type === 'krawatte' || x.type === 'fliege'; })[0]);
+    }
+    // Wirkung der Auswahl neu messen
+    var subset = Object.keys(chosen).map(function (k) { return chosen[k]; }).concat(pieces.acc);
+    var seen = {}, usage = {}, n = 0;
+    levels.forEach(function (L) {
+      weathers.forEach(function (wt) {
+        var info = AK.enumerate(subset, mk(L, wt), { cap: 10 });
+        if (info.missing) return;
+        info.combos.forEach(function (cb) {
+          if (cb.total < 0.75) return;
+          var k = L + '#' + key(cb.c);
+          if (seen[k]) return;
+          seen[k] = 1; n++;
+          MAIN.forEach(function (s) { var p = cb.c[s]; if (p) usage[p.id] = (usage[p.id] || 0) + 1; });
+        });
+      });
+    });
+    // Beispiel-Outfits
+    var samples = [], sk = {};
+    levels.slice(0, 2).forEach(function (L) {
+      weathers.slice(0, 2).forEach(function (wt) {
+        var r = AK.suggest(subset, mk(L, wt), { n: 2 });
+        r.outfits.forEach(function (of) { if (!sk[of.key]) { sk[of.key] = 1; samples.push({ level: L, temp: wt.temp, outfit: of }); } });
+      });
+    });
+    // Am Reisetag tragen: schwerste Teile, spart Platz im Koffer
+    function heaviest(slot) {
+      return pieces[slot].slice().sort(function (a, b) { return (b.w || 0) - (a.w || 0); })[0];
+    }
+    var travel = [heaviest('outer'), heaviest('shoes'), heaviest('mid')].filter(Boolean);
+    var warn = [];
+    if (n < Math.min(days, 4)) warn.push('Mit dieser Auswahl sind nur ' + n + ' gute Outfits möglich. Dir fehlen passende Kombi-Teile.');
+    if (!pieces.top.length || !pieces.bottom.length || !pieces.shoes.length) warn.push('Für eine vollständige Kapsel fehlen Teile im Schrank.');
+    return { pieces: pieces, n: n, usage: usage, samples: samples.slice(0, 5), travel: travel, warns: warn, caps: caps, total: Object.keys(chosen).length + pieces.acc.length };
+  };
+})(typeof AK !== 'undefined' ? AK : (global.AK = require('./data.js')));
+;
+/* ---- ui1.js ---- */
+/* ===== Ankleide: Oberfläche, Teil 1 (Helfer, Speicher, Fotos) ===== */
+var S = { items: [], diary: [], settings: {}, ready: false, mode: 'boot', syncErr: false };
+var V = { tab: 'today', results: null, scan: null };
+var $ = function (id) { return document.getElementById(id); };
+
+function h(tag, a) {
+  var e = document.createElement(tag);
+  if (a) for (var k in a) {
+    var v = a[k];
+    if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, '');
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (var i = 2; i < arguments.length; i++) add(e, arguments[i]);
+  return e;
+}
+function add(e, c) {
+  if (c == null || c === false) return;
+  if (Array.isArray(c)) { c.forEach(function (x) { add(e, x); }); return; }
+  e.append(c.nodeType ? c : document.createTextNode(String(c)));
+}
+function clear(e) { while (e.firstChild) e.removeChild(e.firstChild); return e; }
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function todayStr() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function hex(id) { var c = AK.COLORS.filter(function (x) { return x.id === id; })[0]; return c ? c.hex : '#888'; }
+function cname(id) { var c = AK.COLORS.filter(function (x) { return x.id === id; })[0]; return c ? c.name : id; }
+function typeLabel(t) { return AK.TYPES[t] ? AK.TYPES[t].label : t; }
+function slotName(id) { return AK.SLOTS.filter(function (s) { return s.id === id; })[0].name; }
+function deDate(iso) {
+  try { return new Date(iso + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }); } catch (e) { return iso; }
+}
+
+var ICONS = {
+  sun: '<path d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.7-5.7 1.4-1.4M4.9 19.1l1.4-1.4m0-11.4L4.9 4.9m14.2 14.2-1.4-1.4"/><circle cx="12" cy="12" r="4"/>',
+  hanger: '<path d="M12 7a2.5 2.5 0 1 0-2.5-2.5M12 7v2.5l9 6.5a1.5 1.5 0 0 1-.9 2.7H3.9A1.5 1.5 0 0 1 3 16l9-6.5"/>',
+  cam: '<path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/>',
+  more: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  dice: '<rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="9" cy="15" r="1"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  img: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 4 4 3-3 4 4"/>'
+};
+function ico(n) {
+  var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor');
+  s.setAttribute('stroke-width', '1.8'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
+  s.setAttribute('aria-hidden', 'true'); s.innerHTML = ICONS[n] || '';
+  return s;
+}
+
+var toastTimer = null;
+function toast(msg) {
+  var t = $('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 3200);
+}
+
+/* Sheet: Overlay von unten (Escape schließt, Fokus bleibt im Sheet und kehrt danach zurück) */
+var sheetKeys = null;
+function openSheet(title, build) {
+  var root = $('sheet-root');
+  var prev = root.firstChild ? null : document.activeElement;
+  if (sheetKeys) document.removeEventListener('keydown', sheetKeys);
+  var closed = false;
+  var close = function () {
+    if (closed) return; closed = true;
+    document.removeEventListener('keydown', keys); if (sheetKeys === keys) sheetKeys = null;
+    clear(root); document.body.style.overflow = '';
+    if (prev && prev.focus && document.contains(prev)) prev.focus();
+  };
+  var keys = function (ev) {
+    if (ev.key === 'Escape') { ev.preventDefault(); close(); return; }
+    if (ev.key !== 'Tab') return;
+    var f = Array.prototype.filter.call(sheet.querySelectorAll('button, input, select, textarea, a[href], [tabindex="0"]'), function (x) { return !x.disabled && x.offsetParent !== null; });
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (ev.shiftKey && (document.activeElement === first || document.activeElement === sheet)) { ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+  };
+  var sheet = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title, tabindex: '-1' });
+  var head = h('div', { class: 'sheet-head' }, h('h2', null, title),
+    h('button', { class: 'btn ghost small', type: 'button', 'aria-label': 'Schließen', onclick: close }, ico('x')));
+  var body = h('div', { class: 'stack' });
+  sheet.append(head, body);
+  var back = h('div', { class: 'backdrop', onclick: function (ev) { if (ev.target === back) close(); } }, sheet);
+  if (root.firstChild && root._prev) prev = root._prev;
+  root._prev = prev;
+  clear(root); root.append(back); document.body.style.overflow = 'hidden';
+  sheetKeys = keys; document.addEventListener('keydown', keys);
+  build(body, close);
+  try { sheet.focus({ preventScroll: true }); } catch (e) { sheet.focus(); }
+  return close;
+}
+
+/* ---------- Speicher: Konto-Datenbank, sonst lokal ---------- */
+var Store = {
+  mode: 'local', col: null, chains: {}, timer: null,
+  load: function () {
+    try {
+      var raw = localStorage.getItem('ankleide.v1');
+      if (raw) { var o = JSON.parse(raw); S.items = (o.items || []).map(AK.normalize); S.diary = o.diary || []; S.settings = o.settings || {}; }
+    } catch (e) {}
+  },
+  saveLocal: function () {
+    try { localStorage.setItem('ankleide.v1', JSON.stringify({ items: S.items, diary: S.diary, settings: S.settings })); }
+    catch (e) { toast('Lokaler Speicher voll. Lösche Teile oder nutze kleinere Fotos.'); }
+  },
+  write: function (id, data) {
+    if (this.mode !== 'db') { this.saveLocal(); return; }
+    var self = this;
+    data = JSON.parse(JSON.stringify(data));
+    this.chains[id] = (this.chains[id] || Promise.resolve()).then(function () { return self.col.doc(id).set(data); }).catch(function (e) { self.fail(e); });
+  },
+  remove: function (id) {
+    if (this.mode !== 'db') { this.saveLocal(); return; }
+    var self = this;
+    this.chains[id] = (this.chains[id] || Promise.resolve()).then(function () { return self.col.doc(id).delete(); }).catch(function (e) { self.fail(e); });
+  },
+  fail: function (e) {
+    S.syncErr = true; renderSync();
+    toast('Das Speichern im Konto hat nicht geklappt. Änderungen sind nur auf diesem Gerät sichtbar.');
+  },
+  putItem: function (it) {
+    it = AK.normalize(it); it.demo = false;
+    var i = S.items.findIndex(function (x) { return x.id === it.id; });
+    if (i < 0) S.items.push(it); else S.items[i] = it;
+    this.write('g_' + it.id, Object.assign({ kind: 'g' }, it));
+  },
+  delItem: function (id) {
+    S.items = S.items.filter(function (x) { return x.id !== id; });
+    this.remove('g_' + id);
+  },
+  putDiary: function (e) {
+    S.diary.unshift(e);
+    this.write('d_' + e.id, Object.assign({ kind: 'd' }, e));
+  },
+  delDiary: function (id) {
+    S.diary = S.diary.filter(function (x) { return x.id !== id; });
+    this.remove('d_' + id);
+  },
+  setSetting: function (k, v) {
+    S.settings[k] = v;
+    this.write('settings', Object.assign({ kind: 's' }, S.settings));
+  },
+  init: async function () {
+    var user = null, db = null, id = null;
+    if (window.claude && window.claude.use) {
+      try { user = await window.claude.use('user'); } catch (e) {}
+      try { db = await window.claude.use('db'); } catch (e) {}
+      try { id = user ? await user.id() : null; } catch (e) {}
+    }
+    if (db && id) {
+      this.mode = 'db'; S.mode = 'db';
+      this.col = db.collection('data/users/' + id);
+      var self = this;
+      this.timer = setTimeout(function () { S.syncErr = true; renderSync(); }, 10000);
+      this.col.onSnapshot(function (snap) {
+        var items = [], diary = [], settings = {};
+        snap.docs.forEach(function (d) {
+          var v = d.data(); if (!v) return;
+          var o = Object.assign({}, v); delete o.kind;
+          if (d.id.indexOf('g_') === 0) items.push(AK.normalize(o));
+          else if (d.id.indexOf('d_') === 0) diary.push(o);
+          else if (d.id === 'settings') settings = o;
+        });
+        diary.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+        S.items = items; S.diary = diary; S.settings = settings;
+        if (!snap.metadata.fromCache) { clearTimeout(self.timer); S.syncErr = false; }
+        S.ready = true; onData();
+      }, function (e) { self.fail(e); S.ready = true; onData(); });
+    } else {
+      this.mode = 'local'; S.mode = 'local'; this.load(); S.ready = true; onData();
+    }
+  }
+};
+
+/* Aktiver Schrank: eigene Teile, sonst Beispiel-Schrank */
+function wardrobe() {
+  if (S.items.length) return S.items;
+  if (S.settings.demoOff) return [];
+  return AK.DEMO;
+}
+function isDemo() { return !S.items.length && !S.settings.demoOff; }
+
+/* ---------- Fotos ---------- */
+function loadImg(file) {
+  return new Promise(function (res, rej) {
+    var url = URL.createObjectURL(file), im = new Image();
+    im.onload = function () { URL.revokeObjectURL(url); res(im); };
+    im.onerror = function () { URL.revokeObjectURL(url); rej(new Error('Bild nicht lesbar')); };
+    im.src = url;
+  });
+}
+var RGB = null;
+function palette() {
+  if (!RGB) RGB = AK.COLORS.map(function (c) { return { id: c.id, r: parseInt(c.hex.slice(1, 3), 16), g: parseInt(c.hex.slice(3, 5), 16), b: parseInt(c.hex.slice(5, 7), 16) }; });
+  return RGB;
+}
+function nearestColor(r, g, b) {
+  var best = null, bd = 1e12;
+  palette().forEach(function (c) {
+    var d = 2 * (r - c.r) * (r - c.r) + 4 * (g - c.g) * (g - c.g) + 3 * (b - c.b) * (b - c.b);
+    if (d < bd) { bd = d; best = c.id; }
+  });
+  return best;
+}
+function detectColor(cv) {
+  var w = cv.width, hh = cv.height, d = cv.getContext('2d').getImageData(0, 0, w, hh).data;
+  var bg = [0, 0, 0], n = 0, i, k;
+  function acc(x, y) { k = (y * w + x) * 4; bg[0] += d[k]; bg[1] += d[k + 1]; bg[2] += d[k + 2]; n++; }
+  for (i = 0; i < w; i++) { acc(i, 0); acc(i, hh - 1); }
+  for (i = 0; i < hh; i++) { acc(0, i); acc(w - 1, i); }
+  bg = bg.map(function (v) { return v / n; });
+  var votes = {}, any = 0;
+  for (var y = Math.floor(hh * 0.18); y < hh * 0.82; y++) for (var x = Math.floor(w * 0.18); x < w * 0.82; x++) {
+    k = (y * w + x) * 4;
+    var dr = d[k] - bg[0], dg = d[k + 1] - bg[1], db = d[k + 2] - bg[2];
+    if (dr * dr + dg * dg + db * db < 1500) continue;
+    var id = nearestColor(d[k], d[k + 1], d[k + 2]);
+    votes[id] = (votes[id] || 0) + 1; any++;
+  }
+  if (!any) return nearestColor(bg[0], bg[1], bg[2]);
+  return Object.keys(votes).sort(function (a, b) { return votes[b] - votes[a]; })[0];
+}
+async function processPhoto(file) {
+  var im = await loadImg(file);
+  function draw(max) {
+    var sc = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(im.naturalWidth * sc)); c.height = Math.max(1, Math.round(im.naturalHeight * sc));
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    return c;
+  }
+  var big = draw(900), small = draw(400), tiny = draw(64);
+  var blob = await new Promise(function (r) { big.toBlob(r, 'image/jpeg', 0.82); });
+  return { thumb: small.toDataURL('image/jpeg', 0.7), blob: blob, color: detectColor(tiny) };
+}
+;
+/* ---- ui2.js ---- */
+/* ===== Ankleide: Oberfläche, Teil 2 (Kern: Tabs, Status, Bausteine, Aktionen) ===== */
+var TABS = [
+  { id: 'today', name: 'Heute' }, { id: 'closet', name: 'Schrank' },
+  { id: 'scan', name: 'Scan' }, { id: 'more', name: 'Mehr' }
+];
+var SHORT = ['Sport', 'Relaxt', 'Casual', 'Smart', 'Business', 'Cocktail', 'Black Tie'];
+var MAIN_SLOTS = ['top', 'mid', 'outer', 'bottom', 'shoes'];
+var PANELS = {};
+V.dirty = {};
+V.needsRecalc = false;
+var IN_CLAUDE = typeof window !== 'undefined' && !!(window.claude && window.claude.use);
+
+ICONS.trash = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>';
+ICONS.bookmark = '<path d="M7 4h10v16l-5-4-5 4z"/>';
+ICONS.copy = '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>';
+ICONS.down = '<path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/>';
+ICONS.up = '<path d="M12 20V9m-5 5 5-5 5 5M5 4h14"/>';
+ICONS.bag = '<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V4h6v3M4 12h16"/>';
+ICONS.cal = '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>';
+ICONS.wash = '<path d="M5 4h14v16H5zM5 8h14"/><circle cx="12" cy="14" r="3.2"/>';
+ICONS.arrow = '<path d="M5 12h14m-5-5 5 5-5 5"/>';
+ICONS.edit = '<path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"/>';
+
+function registerPanel(id, o) { o.built = false; PANELS[id] = o; }
+function levelName(L) { return (AK.LEVELS[L] || {}).name || ''; }
+function actName(id) { return (AK.ACT[id] || {}).name || ''; }
+function trName(id) { return (AK.TRANSPORT.filter(function (t) { return t.id === id; })[0] || {}).name || ''; }
+function seasonName(id) { return (AK.SEASONS.filter(function (s) { return s.id === id; })[0] || {}).name || ''; }
+function fmtN(n) { try { return Number(n).toLocaleString('de-DE'); } catch (e) { return String(n); } }
+function fmtT(t) { return (t < 0 ? '−' : '') + Math.abs(Math.round(t)) + '\u00a0°C'; }
+function itemById(id) { return wardrobe().filter(function (x) { return x.id === id; })[0] || null; }
+function lightColor(id) {
+  var c = hex(id), r = parseInt(c.slice(1, 3), 16), g = parseInt(c.slice(3, 5), 16), b = parseInt(c.slice(5, 7), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62;
+}
+function autoName(it) { return typeLabel(it.type) + ' ' + cname(it.color); }
+function addDays(iso, n) {
+  var d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+function prefersReducedMotion() {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+}
+function scrollToEl(el) {
+  if (!el || !el.scrollIntoView) return;
+  try { el.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' }); } catch (e) { el.scrollIntoView(); }
+}
+
+/* ---------- Start, Tabs, Status ---------- */
+function initApp() {
+  try { document.documentElement.lang = 'de'; } catch (e) {}
+  applyTheme();
+  var nav = document.querySelector('nav.tabs');
+  Array.prototype.forEach.call(nav.querySelectorAll('button[data-tab]'), function (b) {
+    var slot = b.querySelector('.ti');
+    if (slot) slot.replaceWith(ico(slot.getAttribute('data-ico')));
+    b.addEventListener('click', function () { showTab(b.getAttribute('data-tab')); });
+    b.addEventListener('keydown', function (ev) {
+      var ids = TABS.map(function (t) { return t.id; }), i = ids.indexOf(b.getAttribute('data-tab')), j = -1;
+      if (ev.key === 'ArrowRight') j = (i + 1) % ids.length;
+      else if (ev.key === 'ArrowLeft') j = (i + ids.length - 1) % ids.length;
+      else if (ev.key === 'Home') j = 0; else if (ev.key === 'End') j = ids.length - 1;
+      if (j < 0) return;
+      ev.preventDefault(); showTab(ids[j]); $('t-' + ids[j]).focus();
+    });
+  });
+  showTab('today', true);
+  renderSync();
+}
+
+function showTab(id, initial) {
+  var prev = V.tab;
+  V.tab = id;
+  TABS.forEach(function (t) {
+    var b = $('t-' + t.id), p = $('p-' + t.id), on = t.id === id;
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+    p.hidden = !on;
+  });
+  var P = PANELS[id], el = $('p-' + id);
+  if (P) {
+    if (!P.built) { P.build(el); P.built = true; V.dirty[id] = false; }
+    else if (V.dirty[id] || (P.always && prev !== id)) { P.refresh(el); V.dirty[id] = false; }
+  }
+  if (!initial && prev !== id) window.scrollTo(0, 0);
+}
+
+function renderSync() {
+  var el = $('sync'); if (!el) return;
+  var txt;
+  if (!S.ready) txt = 'Lädt …';
+  else if (S.mode === 'db') txt = S.syncErr ? 'Konto nicht erreichbar' : 'Im Konto gespeichert';
+  else txt = 'Auf diesem Gerät';
+  el.textContent = txt;
+  el.classList.toggle('err', !!S.syncErr);
+  el.title = S.mode === 'db' ? 'Dein Schrank wird in deinem Claude-Konto gespeichert.' : 'Dein Schrank wird nur im Speicher dieses Browsers abgelegt.';
+}
+
+/* Wird von Store aufgerufen, sobald Daten da sind oder sich geändert haben */
+function onData() {
+  renderSync();
+  if (V.ctx && V.ctx.must) {
+    V.ctx.must = V.ctx.must.filter(function (m) { return m.kind !== 'item' || m.item || itemById(m.id); });
+  }
+  Object.keys(PANELS).forEach(function (k) { V.dirty[k] = true; });
+  var P = PANELS[V.tab];
+  if (P && P.built) { P.refresh($('p-' + V.tab)); V.dirty[V.tab] = false; }
+}
+/* nach eigenen Änderungen: im lokalen Modus ruft Store kein onData auf */
+function changed() { onData(); }
+
+/* Hell / Dunkel: nur in der eigenständigen Fassung wählbar, im Artifact entscheidet claude.ai */
+function themePref() { try { return localStorage.getItem('ankleide.theme') || 'auto'; } catch (e) { return 'auto'; } }
+function applyTheme(v) {
+  if (IN_CLAUDE) return;
+  v = v || themePref();
+  try { if (v === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', v); } catch (e) {}
+}
+function setTheme(v) { try { localStorage.setItem('ankleide.theme', v); } catch (e) {} applyTheme(v); }
+
+/* ---------- Beispielschrank ---------- */
+/* Wer ein Beispielteil ändert oder trägt, übernimmt den Beispielschrank als eigenen */
+function adoptDemo(silent) {
+  if (!isDemo()) return false;
+  AK.DEMO.forEach(function (x) { Store.putItem(JSON.parse(JSON.stringify(x))); });
+  if (!silent) toast('Beispielschrank übernommen. Du kannst jedes Teil ändern oder löschen.');
+  return true;
+}
+function addDemoItems() {
+  var have = {};
+  S.items.forEach(function (x) { have[x.id] = 1; });
+  var n = 0;
+  AK.DEMO.forEach(function (x) { if (!have[x.id]) { Store.putItem(JSON.parse(JSON.stringify(x))); n++; } });
+  return n;
+}
+function demoBanner(where) {
+  var box = h('div', { class: 'banner', role: 'note' });
+  function upd() {
+    clear(box);
+    box.hidden = !(S.ready && isDemo());
+    if (box.hidden) return;
+    box.append(
+      h('div', { class: 'small' }, h('b', null, 'Beispielschrank. '),
+        h('span', { class: 'muted' }, 'So arbeitet Ankleide mit gefülltem Schrank. Änderst du ein Teil oder trägst ein Outfit, wird er zu deinem.')),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn small', type: 'button', onclick: function () { adoptDemo(); changed(); } }, 'Übernehmen'),
+        h('button', { class: 'btn ghost small', type: 'button', onclick: function () { Store.setSetting('demoOff', true); V.needsRecalc = true; changed(); toast('Leerer Schrank. Lege dein erstes Teil an.'); } }, 'Leer starten'))
+    );
+  }
+  box.upd = upd; upd();
+  return box;
+}
+
+/* ---------- Bausteine ---------- */
+function thumbEl(it, o) {
+  o = o || {};
+  var cls = 'thumb' + (it.pattern && it.pattern !== 'uni' ? ' ' + it.pattern : '') + (lightColor(it.color) ? ' light' : '') + (o.size ? ' ' + o.size : '');
+  var t = h('span', { class: cls, style: '--c:' + hex(it.color) });
+  if (it.photo) t.append(h('img', { src: it.photo, alt: '', loading: 'lazy' }));
+  if (o.badges) {
+    var b = h('span', { class: 'badges' });
+    if (it.fav) b.append(h('span', { class: 'badge star', title: 'Lieblingsteil' }, '★'));
+    if (it.basic) b.append(h('span', { class: 'badge', title: 'Basic' }, 'Basic'));
+    if (it.never) b.append(h('span', { class: 'badge', title: 'Nie tragen' }, 'Nie'));
+    else if (it.avail === false) b.append(h('span', { class: 'badge', title: 'In der Wäsche' }, 'Wäsche'));
+    if (b.firstChild) t.append(b);
+  }
+  if (o.label) t.append(h('span', { class: 'tl' }, typeLabel(it.type)));
+  return t;
+}
+function prow(it, end, sub) {
+  return h('div', { class: 'prow' }, thumbEl(it, { size: 'sm' }),
+    h('span', { class: 'pn' }, it.name, h('small', null, sub || (typeLabel(it.type) + ' · ' + cname(it.color)))),
+    end != null ? h('span', { class: 'end' }, end) : h('span'));
+}
+function itemsOf(o) { return MAIN_SLOTS.map(function (k) { return o[k]; }).filter(Boolean); }
+function spineColors(o) { return ['outer', 'mid', 'top', 'bottom', 'shoes'].map(function (k) { return o[k]; }).filter(Boolean).map(function (x) { return hex(x.color); }); }
+function outfitTitle(o) {
+  var lead = o.outer || o.mid || o.top;
+  return lead && o.bottom ? typeLabel(lead.type) + ' & ' + typeLabel(o.bottom.type) : 'Outfit';
+}
+function fullKey(o) { return MAIN_SLOTS.map(function (k) { return o[k] ? o[k].id : '-'; }).join('|'); }
+
+/* Segment-Schalter: opts = [{id, label}], get() liefert den aktiven Wert */
+function seg(opts, get, set, label) {
+  var el = h('div', { class: 'seg', role: 'group', 'aria-label': label });
+  opts.forEach(function (o) {
+    el.append(h('button', { type: 'button', 'data-v': String(o.id), 'aria-pressed': 'false', title: o.title || null,
+      onclick: function () { set(o.id); el.upd(); } }, o.label));
+  });
+  el.upd = function () {
+    var v = String(get());
+    Array.prototype.forEach.call(el.children, function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === v ? 'true' : 'false'); });
+  };
+  el.upd();
+  return el;
+}
+/* Chip-Gruppe zum Umschalten (einzeln oder mehrfach) */
+function chipGroup(opts, isOn, toggle, label) {
+  var el = h('div', { class: 'chips', role: 'group', 'aria-label': label });
+  opts.forEach(function (o) {
+    el.append(h('button', { class: 'chip', type: 'button', 'data-v': String(o.id), 'aria-pressed': 'false',
+      onclick: function () { toggle(o.id); el.upd(); } }, o.label, o.count != null ? h('span', { class: 'ct' }, o.count) : null));
+  });
+  el.upd = function () {
+    Array.prototype.forEach.call(el.children, function (b, i) { b.setAttribute('aria-pressed', isOn(opts[i].id) ? 'true' : 'false'); });
+  };
+  el.upd();
+  return el;
+}
+function checkbox(id, label, get, set) {
+  var inp = h('input', { type: 'checkbox', id: id });
+  inp.checked = !!get();
+  inp.addEventListener('change', function () { set(inp.checked); });
+  var el = h('label', { class: 'check', for: id }, inp, h('span', null, label));
+  el.upd = function () { inp.checked = !!get(); };
+  return el;
+}
+function sec(title, content, id) {
+  return h('section', { class: 'sec', id: id || null }, h('h2', { class: 'mono' }, title), content);
+}
+/* Zweistufige Bestätigung im Seiteninhalt (kein confirm()) */
+function confirmBtn(label, question, yesLabel, onYes, cls) {
+  var wrap = h('div', { class: 'stack' });
+  function idle() {
+    clear(wrap);
+    wrap.append(h('button', { class: 'btn ' + (cls || 'danger'), type: 'button', onclick: ask }, label));
+  }
+  function ask() {
+    clear(wrap);
+    var yes = h('button', { class: 'btn danger', type: 'button', onclick: function () { onYes(); } }, yesLabel);
+    wrap.append(h('div', { class: 'confirm', role: 'alertdialog', 'aria-label': question },
+      h('div', null, question),
+      h('div', { class: 'row' }, yes, h('button', { class: 'btn ghost', type: 'button', onclick: idle }, 'Abbrechen'))));
+    yes.focus();
+  }
+  idle();
+  return wrap;
+}
+
+/* Outfit-Etikett. o = Ergebnis von AK.buildOutfit, opt = {i, ctx, actions, wished(it)} */
+function outfitCard(o, opt) {
+  opt = opt || {};
+  var it = o.items, main = itemsOf(it);
+  var spine = h('div', { class: 'spine', 'aria-hidden': 'true' });
+  spineColors(it).forEach(function (c) { spine.append(h('i', { style: '--c:' + c })); });
+  var sub = ['Nr. ' + pad((opt.i || 0) + 1)];
+  if (opt.ctx) sub.push(levelName(opt.ctx.level));
+  var head = h('div', { class: 'o-head' },
+    h('div', null, h('div', { class: 'mono o-sub' }, sub.join(' · ')), h('h3', { class: 'o-title' }, outfitTitle(it))),
+    h('div', { class: 'fit', title: 'Wie gut das Outfit zu deinen Angaben passt (5 bis 99)' },
+      h('b', { class: 'num' }, o.score),
+      h('div', { class: 'bar', 'aria-hidden': 'true' }, h('i', { style: 'width:' + o.score + '%' })),
+      h('span', { class: 'mono' }, 'Stimmigkeit')));
+  var pieces = h('div', { class: 'pieces' });
+  ['top', 'mid', 'outer', 'bottom', 'shoes'].forEach(function (k) {
+    var x = it[k]; if (!x) return;
+    pieces.append(h('div', { class: 'piece' }, thumbEl(x),
+      h('div', null, h('div', { class: 'pn' }, x.name, opt.wished && opt.wished(x) ? h('span', { class: 'tag' }, 'Wunsch') : null),
+        h('span', { class: 'mono pmeta' }, slotName(k) + ' · ' + cname(x.color)))));
+  });
+  var acc = null;
+  if (it.acc && it.acc.length) {
+    acc = h('div', { class: 'acc', 'aria-label': 'Accessoires' });
+    it.acc.forEach(function (a) { acc.append(h('span', null, h('i', { style: '--c:' + hex(a.color) }), a.name)); });
+  }
+  var notes = h('ul', { class: 'notes' });
+  o.warns.forEach(function (w) { notes.append(h('li', { class: 'w' }, h('span', { class: 'vh' }, 'Achtung: '), w)); });
+  o.notes.forEach(function (w) { notes.append(h('li', null, w)); });
+  (o.softs || []).forEach(function (w) { notes.append(h('li', { class: 's' }, w)); });
+  var body = h('div', { class: 'o-body' }, head, pieces, acc, notes);
+  if (opt.actions) {
+    var wearBtn = h('button', { class: 'btn', type: 'button' }, ico('check'), 'Das trage ich');
+    var saveBtn = h('button', { class: 'btn ghost', type: 'button' }, ico('bookmark'), 'Merken');
+    var key = fullKey(it);
+    function updSave() {
+      var on = isSaved(key);
+      saveBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      saveBtn.lastChild.textContent = on ? 'Gemerkt' : 'Merken';
+    }
+    wearBtn.addEventListener('click', function () {
+      if (wearBtn.disabled) return;
+      wearOutfit(it, opt.ctx || {});
+      wearBtn.disabled = true; wearBtn.classList.add('done'); wearBtn.lastChild.textContent = 'Eingetragen';
+    });
+    saveBtn.addEventListener('click', function () { toggleSaved(it, opt.ctx || {}); updSave(); });
+    updSave();
+    body.append(h('div', { class: 'o-actions' }, wearBtn, saveBtn));
+  }
+  return h('article', { class: 'outfit', 'aria-label': 'Vorschlag ' + ((opt.i || 0) + 1) + ': ' + main.map(function (x) { return x.name; }).join(', ') }, spine, body);
+}
+
+/* Kompakte Zeile: Farbstreifen plus Namen */
+function miniOutfit(items, meta, actions) {
+  var all = items.filter(Boolean);
+  var sp = h('div', { class: 'mspine', 'aria-hidden': 'true' });
+  all.filter(function (x) { return x.slot !== 'acc'; }).forEach(function (x) { sp.append(h('i', { style: '--c:' + hex(x.color) })); });
+  return h('div', { class: 'mini' }, sp, h('div', { class: 'mbody' },
+    meta ? h('div', { class: 'mono' }, meta) : null,
+    h('div', { class: 'mnames' }, all.map(function (x) { return x.name; }).join(' · ')),
+    actions && actions.length ? h('div', { class: 'mact' }, actions) : null));
+}
+function outfitList(o) { return itemsOf(o).concat(o.acc || []); }
+
+/* ---------- Aktionen ---------- */
+function wearOutfit(items, ctx) {
+  var wasDemo = adoptDemo(true);
+  var list = Array.isArray(items) ? items : outfitList(items);
+  var today = todayStr(), ids = [], names = [], laundry = [];
+  list.forEach(function (x) {
+    var own = S.items.filter(function (y) { return y.id === x.id; })[0];
+    if (!own) return;
+    var c = JSON.parse(JSON.stringify(own));
+    c.wears = (c.wears || 0) + 1; c.last = today;
+    if (S.settings.autoLaundry && c.slot === 'top') { c.avail = false; laundry.push(c.name); }
+    Store.putItem(c);
+    ids.push(c.id); names.push(c.name);
+  });
+  if (!ids.length) { toast('Diese Teile sind nicht mehr in deinem Schrank.'); return; }
+  var w = ctx.weather || {};
+  Store.putDiary({ id: uid(), ts: Date.now(), date: today, level: ctx.level != null ? ctx.level : null,
+    temp: w.temp != null ? w.temp : (ctx.temp != null ? ctx.temp : null), activity: ctx.activity || null, ids: ids, names: names });
+  var msg = wasDemo ? 'Eingetragen. Der Beispielschrank ist jetzt dein Schrank.' : 'Eingetragen. Viel Freude damit!';
+  if (laundry.length) msg += ' In der Wäsche: ' + laundry.join(', ') + '.';
+  toast(msg);
+  changed();
+}
+function savedList() { return Array.isArray(S.settings.saved) ? S.settings.saved : []; }
+function isSaved(key) { return savedList().some(function (s) { return s.key === key; }); }
+function toggleSaved(items, ctx) {
+  var key = fullKey(items), list = savedList().slice();
+  if (isSaved(key)) {
+    list = list.filter(function (s) { return s.key !== key; });
+    Store.setSetting('saved', list); toast('Nicht mehr gemerkt.');
+  } else {
+    var all = outfitList(items), w = ctx.weather || {};
+    list.unshift({ id: uid(), ts: Date.now(), key: key, level: ctx.level != null ? ctx.level : null, temp: w.temp != null ? w.temp : null,
+      activity: ctx.activity || null, ids: all.map(function (x) { return x.id; }), names: all.map(function (x) { return x.name; }) });
+    Store.setSetting('saved', list.slice(0, 40)); toast('Gemerkt. Du findest es unter Mehr → Tagebuch.');
+  }
+  V.dirty.more = true;
+}
+;
+/* ---- ui3.js ---- */
+/* ===== Ankleide: Oberfläche, Teil 3 (Tab „Heute“) ===== */
+/* Annahme: typische Tageshöchstwerte in Konstanz je Monat als Startwert für die Temperatur */
+var MONTH_TEMP = [3, 5, 10, 14, 19, 22, 24, 24, 19, 14, 8, 4];
+
+function defaultCtx() {
+  var t = MONTH_TEMP[new Date().getMonth()];
+  return { level: 2, temp: t, rain: false, snow: false, wind: false, sun: t >= 20, season: 'auto', transport: 'oepnv',
+    factors: [], activity: 'alltag', boldness: 1, onlyBasics: false, must: [], seed: 1 };
+}
+V.ctx = defaultCtx();
+V.avoid = [];
+V.preSportLevel = null;
+
+function seasonOf(c) { return c.season === 'auto' ? AK.seasonFor(c.temp, new Date().getMonth() + 1) : c.season; }
+function engineCtx(c, over) {
+  var x = {
+    level: c.level, weather: { temp: c.temp, rain: !!c.rain, snow: !!c.snow, wind: !!c.wind, sun: !!c.sun },
+    transport: c.transport, factors: c.factors.slice(), must: c.must.map(function (m) { return Object.assign({}, m); }),
+    boldness: c.boldness, onlyBasics: !!c.onlyBasics, seed: c.seed, today: todayStr(), activity: c.activity, season: seasonOf(c)
+  };
+  if (over) for (var k in over) x[k] = over[k];
+  return x;
+}
+function isSportAct(id) { var a = AK.ACT[id] || {}; return a.level === 0; }
+function mustLabel(m) {
+  if (m.kind === 'item') { var it = m.item || itemById(m.id); return it ? it.name : 'Teil'; }
+  return typeLabel(m.type) + (m.color ? ' · ' + cname(m.color) : '');
+}
+function mustSlot(m) {
+  if (m.kind === 'item') { var it = m.item || itemById(m.id); return it ? it.slot : null; }
+  return AK.TYPES[m.type] ? AK.TYPES[m.type].slot : null;
+}
+function isWishedFor(ctx) {
+  return function (x) {
+    return (ctx.must || []).some(function (m) {
+      return (m.kind === 'item' && (m.id === x.id || (m.item && m.item.id === x.id))) ||
+        (m.kind === 'type' && m.type === x.type && (!m.color || m.color === x.color));
+    });
+  };
+}
+/* Ein Wunsch je Slot (außer Accessoires): ein neuer Wunsch ersetzt den alten im selben Slot */
+function addMust(m) {
+  var slot = mustSlot(m), replaced = null;
+  V.ctx.must = V.ctx.must.filter(function (x) {
+    var same = (x.kind === m.kind) && (m.kind === 'item' ? (x.id && x.id === m.id) : (x.type === m.type && (x.color || '') === (m.color || '')));
+    if (same) return false;
+    if (slot && slot !== 'acc' && mustSlot(x) === slot) { replaced = mustLabel(x); return false; }
+    return true;
+  });
+  V.ctx.must.push(m);
+  return replaced;
+}
+function hasMustItem(id) { return V.ctx.must.some(function (m) { return m.kind === 'item' && m.id === id; }); }
+function removeMust(i) { V.ctx.must.splice(i, 1); todayChanged(); }
+
+var TU = [], recalcTimer = null;
+function todayChanged(now) {
+  V.avoid = [];
+  TU.forEach(function (f) { f(); });
+  clearTimeout(recalcTimer);
+  if (now) recalc(); else recalcTimer = setTimeout(recalc, 120);
+}
+
+registerPanel('today', {
+  build: function (p) {
+    clear(p); TU = [];
+    var c = V.ctx;
+    var banner = demoBanner(); TU.push(banner.upd);
+
+    /* Dresscode als Maßband */
+    var tape = h('div', { class: 'tape', role: 'group', 'aria-label': 'Dresscode-Stufe' });
+    AK.LEVELS.forEach(function (lv) {
+      tape.append(h('button', { type: 'button', 'aria-pressed': 'false', 'aria-label': 'Stufe ' + lv.id + ': ' + lv.name,
+        onclick: function () { c.level = lv.id; if (!isSportAct(c.activity)) V.preSportLevel = null; todayChanged(); } },
+        h('span', { class: 'n' }, lv.id), h('span', { class: 'l' }, SHORT[lv.id])));
+    });
+    var lvName = h('div', { class: 'lvl-name' }), lvHint = h('div', { class: 'muted small lvl-hint' });
+    TU.push(function () {
+      Array.prototype.forEach.call(tape.children, function (b, i) { b.setAttribute('aria-pressed', i === c.level ? 'true' : 'false'); });
+      lvName.textContent = levelName(c.level);
+      lvHint.textContent = AK.LEVELS[c.level].hint;
+    });
+
+    /* Wetter */
+    var presets = h('div', { class: 'chips', role: 'group', 'aria-label': 'Wetter-Vorlagen' });
+    AK.WEATHER_PRESETS.forEach(function (w) {
+      presets.append(h('button', { class: 'chip', type: 'button', 'aria-pressed': 'false', onclick: function () {
+        c.temp = w.temp; c.rain = w.rain; c.snow = w.snow; c.wind = w.wind; c.sun = w.sun; todayChanged();
+      } }, w.name, h('span', { class: 'ct' }, fmtT(w.temp))));
+    });
+    var tempOut = h('output', { class: 'temp', for: 'today-temp', id: 'today-temp-out' });
+    var range = h('input', { type: 'range', id: 'today-temp', min: '-10', max: '38', step: '1', 'aria-label': 'Temperatur in Grad Celsius' });
+    range.value = String(c.temp);
+    range.addEventListener('input', function () { c.temp = Number(range.value); tempOut.textContent = fmtT(c.temp); updFeels(); updPresets(); });
+    range.addEventListener('change', function () { c.temp = Number(range.value); todayChanged(); });
+    var feels = h('div', { class: 'mono feels' });
+    function updFeels() {
+      var t = AK._int.effTemp(engineCtx(c));
+      feels.textContent = 'Gefühlt ' + fmtT(t) + ' · ' + seasonName(seasonOf(c));
+    }
+    function updPresets() {
+      Array.prototype.forEach.call(presets.children, function (b, i) {
+        var w = AK.WEATHER_PRESETS[i];
+        b.setAttribute('aria-pressed', (w.temp === c.temp && w.rain === !!c.rain && w.snow === !!c.snow && w.wind === !!c.wind && w.sun === !!c.sun) ? 'true' : 'false');
+      });
+    }
+    var wx = chipGroup([{ id: 'rain', label: 'Regen' }, { id: 'snow', label: 'Schnee' }, { id: 'wind', label: 'Wind' }, { id: 'sun', label: 'Sonnig' }],
+      function (k) { return !!c[k]; }, function (k) { c[k] = !c[k]; todayChanged(); }, 'Wetterlage');
+    var seasonBtns = chipGroup([{ id: 'auto', label: 'Auto' }].concat(AK.SEASONS.map(function (s) { return { id: s.id, label: s.name }; })),
+      function (k) { return c.season === k; }, function (k) { c.season = k; todayChanged(); }, 'Jahreszeit');
+    var autoBtn = seasonBtns.firstChild;
+    TU.push(function () {
+      range.value = String(c.temp); tempOut.textContent = fmtT(c.temp);
+      updFeels(); updPresets(); wx.upd(); seasonBtns.upd();
+      autoBtn.firstChild.textContent = 'Auto (' + seasonName(AK.seasonFor(c.temp, new Date().getMonth() + 1)) + ')';
+    });
+
+    /* Unterwegs */
+    var trans = seg(AK.TRANSPORT.map(function (t) { return { id: t.id, label: t.name }; }), function () { return c.transport; },
+      function (v) { c.transport = v; todayChanged(); }, 'Fortbewegung');
+    var actSel = h('select', { id: 'today-activity', 'aria-label': 'Aktivität' });
+    AK.ACTIVITIES.forEach(function (a) { actSel.append(h('option', { value: a.id }, a.name + (a.level === 0 ? ' (Sport)' : ''))); });
+    actSel.addEventListener('change', function () {
+      var was = c.activity; c.activity = actSel.value;
+      if (isSportAct(c.activity) && !isSportAct(was)) { V.preSportLevel = c.level; c.level = 0; toast('Für ' + actName(c.activity) + ' stelle ich auf „Sportlich“.'); }
+      else if (!isSportAct(c.activity) && isSportAct(was) && V.preSportLevel != null) { c.level = V.preSportLevel; V.preSportLevel = null; }
+      todayChanged();
+    });
+    var factors = chipGroup(AK.FACTORS.map(function (f) { return { id: f.id, label: f.name }; }),
+      function (k) { return c.factors.indexOf(k) >= 0; },
+      function (k) { var i = c.factors.indexOf(k); if (i >= 0) c.factors.splice(i, 1); else c.factors.push(k); todayChanged(); }, 'Weitere Faktoren');
+    TU.push(function () { trans.upd(); actSel.value = c.activity; factors.upd(); });
+
+    /* Stil */
+    var bold = seg([{ id: 0, label: 'Sicher' }, { id: 1, label: 'Ausgewogen' }, { id: 2, label: 'Mutig' }], function () { return c.boldness; },
+      function (v) { c.boldness = v; todayChanged(); }, 'Farbmut');
+    var basics = checkbox('today-basics', 'Nur Basics', function () { return c.onlyBasics; }, function (v) { c.onlyBasics = v; todayChanged(); });
+    TU.push(function () { bold.upd(); basics.upd(); });
+
+    /* Das soll rein */
+    var mustBox = h('div', { class: 'chips' });
+    TU.push(function () {
+      clear(mustBox);
+      if (!c.must.length) mustBox.append(h('span', { class: 'muted small' }, 'Kein Wunschteil. Ankleide wählt frei aus deinem Schrank.'));
+      c.must.forEach(function (m, i) {
+        var lbl = mustLabel(m);
+        mustBox.append(h('span', { class: 'chip static mustchip' },
+          h('span', { class: 'mono' }, m.kind === 'type' ? 'Art' : (m.item && !itemById(m.item.id) ? 'Scan' : 'Teil')), lbl,
+          h('button', { type: 'button', 'aria-label': lbl + ' entfernen', onclick: function () { removeMust(i); } }, ico('x'))));
+      });
+    });
+    var addMustBtn = h('button', { class: 'btn ghost', type: 'button', onclick: openMustSheet }, ico('plus'), 'Wunschteil wählen');
+
+    /* Aktionen und Ergebnis */
+    var res = h('div', { class: 'results stack', id: 'today-results', 'aria-live': 'polite' });
+    var go = h('button', { class: 'btn accent block', type: 'button', id: 'btn-suggest', onclick: function () { recalc(); scrollToEl(res); } }, 'Outfits vorschlagen');
+    var again = h('button', { class: 'btn ghost block', type: 'button', id: 'btn-reroll', onclick: reroll }, ico('dice'), 'Nochmal würfeln');
+
+    p.append(
+      banner,
+      sec('Anlass · Dresscode', h('div', null, tape, lvName, lvHint)),
+      sec('Wetter', h('div', { class: 'stack' }, presets,
+        h('div', { class: 'tempbox' }, tempOut, h('div', null, range, h('div', { class: 'range-scale mono', 'aria-hidden': 'true' }, h('span', null, '−10'), h('span', null, '14'), h('span', null, '38'))), feels),
+        wx, h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Jahreszeit'), seasonBtns))),
+      sec('Unterwegs', h('div', { class: 'stack' }, trans,
+        h('label', { class: 'field', for: 'today-activity' }, h('span', null, 'Aktivität'), actSel), factors)),
+      sec('Stil', h('div', { class: 'stack' }, bold, basics)),
+      sec('Das soll rein', h('div', { class: 'stack' }, mustBox, h('div', null, addMustBtn))),
+      h('div', { class: 'sec stack' }, go, again),
+      res
+    );
+    TU.forEach(function (f) { f(); });
+    if (S.ready) recalc();
+    else res.append(h('div', { class: 'empty' }, 'Dein Schrank wird geladen …'));
+  },
+  refresh: function () {
+    TU.forEach(function (f) { f(); });
+    var r = V.results;
+    if (S.ready && (!r || V.needsRecalc || r.empty || r.res.missing || !r.res.outfits.length)) recalc();
+  }
+});
+
+function reroll() {
+  if (V.results && V.results.res.outfits.length) {
+    V.results.res.outfits.forEach(function (o) { if (V.avoid.indexOf(o.key) < 0) V.avoid.push(o.key); });
+  }
+  V.ctx.seed++;
+  recalc(true);
+  scrollToEl($('today-results'));
+}
+
+function recalc(keepAvoid) {
+  clearTimeout(recalcTimer);
+  var box = $('today-results'); if (!box) return;
+  V.needsRecalc = false;
+  if (!keepAvoid) V.avoid = [];
+  var W = wardrobe();
+  clear(box);
+  if (!W.length) {
+    V.results = { empty: true, res: { outfits: [], warns: [], missing: null } };
+    box.append(h('div', { class: 'card empty stack' },
+      h('h3', null, 'Dein Schrank ist noch leer'),
+      h('p', { style: 'margin:0' }, 'Lege ein paar Teile an oder fotografiere sie. Für Vorschläge brauchst du mindestens ein Oberteil, eine Hose und Schuhe.'),
+      h('div', { class: 'row', style: 'justify-content:center' },
+        h('button', { class: 'btn', type: 'button', onclick: function () { showTab('closet'); openEditor(null); } }, ico('plus'), 'Teil anlegen'),
+        h('button', { class: 'btn ghost', type: 'button', onclick: function () { showTab('scan'); } }, ico('cam'), 'Foto scannen'),
+        h('button', { class: 'btn ghost', type: 'button', onclick: function () { Store.setSetting('demoOff', false); changed(); } }, 'Beispielschrank zeigen'))));
+    return;
+  }
+  var ctx = engineCtx(V.ctx);
+  var r = AK.suggest(W, ctx, { n: 3, cap: 8, avoid: V.avoid });
+  if (!r.missing && !r.outfits.length && V.avoid.length) {
+    V.avoid = [];
+    r = AK.suggest(W, ctx, { n: 3, cap: 8 });
+    toast('Alle Varianten gezeigt. Es geht wieder von vorn los.');
+  }
+  V.results = { res: r, ctx: ctx };
+  var summary = [levelName(ctx.level), fmtT(ctx.weather.temp)];
+  ['rain', 'snow', 'wind', 'sun'].forEach(function (k) { if (ctx.weather[k]) summary.push({ rain: 'Regen', snow: 'Schnee', wind: 'Wind', sun: 'Sonne' }[k]); });
+  summary.push(trName(ctx.transport));
+  if (ctx.activity && ctx.activity !== 'alltag') summary.push(actName(ctx.activity));
+  box.append(h('div', { class: 'res-head' }, h('h2', { class: 'mono' }, 'Vorschläge'),
+    h('span', { class: 'mono' }, r.total ? fmtN(r.total) + ' Kombinationen geprüft' : '')));
+  box.append(h('div', { class: 'small muted' }, summary.join(' · ') + (isDemo() ? ' · aus dem Beispielschrank' : '')));
+  if (r.missing) {
+    box.append(h('div', { class: 'card stack' },
+      h('b', null, 'Dir fehlen noch: ' + r.missing.join(', ') + '.'),
+      h('span', { class: 'muted small' }, ctx.onlyBasics ? 'Mit „Nur Basics“ bleiben zu wenige Teile übrig. Schalte den Filter aus oder markiere mehr Teile als Basic.'
+        : 'Für ein Outfit braucht Ankleide mindestens ein Oberteil, eine Hose und Schuhe, die verfügbar sind (nicht in der Wäsche, nicht „Nie tragen“).'),
+      h('div', null, h('button', { class: 'btn', type: 'button', onclick: function () { showTab('closet'); openEditor(null); } }, ico('plus'), 'Teil anlegen'))));
+  }
+  if (r.warns.length) {
+    var ul = h('ul', { class: 'notes' });
+    r.warns.forEach(function (w) { ul.append(h('li', { class: 'w' }, w)); });
+    box.append(h('div', { class: 'alert' }, ul));
+  }
+  if (!r.missing && !r.outfits.length) box.append(h('div', { class: 'empty' }, 'Keine passende Kombination gefunden. Ändere die Stufe oder nimm Wunschteile heraus.'));
+  var wished = isWishedFor(ctx);
+  r.outfits.forEach(function (o, i) { box.append(outfitCard(o, { i: i, ctx: ctx, actions: true, wished: wished })); });
+}
+
+/* Sheet „Das soll rein“: bestimmtes Teil oder Art (optional mit Farbe) */
+function openMustSheet() {
+  openSheet('Das soll rein', function (body, close) {
+    var mode = 'item';
+    var tabs = seg([{ id: 'item', label: 'Bestimmtes Teil' }, { id: 'type', label: 'Art' }], function () { return mode; },
+      function (v) { mode = v; draw(); }, 'Art des Wunsches');
+    var box = h('div', { class: 'stack' });
+    body.append(tabs, box, h('div', { class: 'foot' }, h('button', { class: 'btn accent block', type: 'button', onclick: close }, 'Fertig')));
+    function draw() {
+      clear(box);
+      if (mode === 'item') drawItems(); else drawTypes();
+    }
+    function drawItems() {
+      var W = wardrobe().filter(function (x) { return !x.never; });
+      if (!W.length) { box.append(h('div', { class: 'empty' }, 'Noch keine Teile im Schrank.')); return; }
+      AK.SLOTS.forEach(function (sl) {
+        var list = W.filter(function (x) { return x.slot === sl.id; });
+        if (!list.length) return;
+        var g = h('div', { class: 'picks' });
+        list.forEach(function (it) {
+          var b = h('button', { class: 'pick', type: 'button', 'aria-pressed': hasMustItem(it.id) ? 'true' : 'false' },
+            thumbEl(it, { size: 'sm' }),
+            h('span', { class: 'pn' }, it.name, h('small', null, typeLabel(it.type) + (it.avail === false ? ' · in der Wäsche' : ''))),
+            h('span', { class: 'ck' }));
+          function mark() {
+            var on = hasMustItem(it.id);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            var ck = b.lastChild; clear(ck); if (on) ck.append(ico('check'));
+          }
+          b.addEventListener('click', function () {
+            if (hasMustItem(it.id)) V.ctx.must = V.ctx.must.filter(function (m) { return !(m.kind === 'item' && m.id === it.id); });
+            else { var rep = addMust({ kind: 'item', id: it.id }); if (rep) toast('Ersetzt: ' + rep); }
+            Array.prototype.forEach.call(box.querySelectorAll('.pick'), function (x) { if (x._mark) x._mark(); });
+            todayChanged();
+          });
+          b._mark = mark; mark();
+          g.append(b);
+        });
+        box.append(h('div', { class: 'stack', style: 'gap:6px' }, h('h3', { class: 'mono' }, sl.name), g));
+      });
+    }
+    function drawTypes() {
+      var W = wardrobe();
+      var chosen = null, color = '';
+      var detail = h('div', { class: 'stack' });
+      box.append(h('p', { class: 'muted small', style: 'margin:0' }, 'Zum Beispiel „eine Jeans“ oder „ein Sakko in Navy“. Ankleide nimmt das passendste Teil dieser Art.'));
+      AK.SLOTS.forEach(function (sl) {
+        var types = Object.keys(AK.TYPES).filter(function (k) { return AK.TYPES[k].slot === sl.id; });
+        var g = h('div', { class: 'chips', role: 'group', 'aria-label': sl.name });
+        types.forEach(function (k) {
+          var n = W.filter(function (x) { return x.type === k && !x.never; }).length;
+          var b = h('button', { class: 'chip' + (n ? '' : ' dim'), type: 'button', 'aria-pressed': 'false', 'data-k': k,
+            onclick: function () { chosen = k; color = ''; Array.prototype.forEach.call(box.querySelectorAll('[data-k]'), function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-k') === k ? 'true' : 'false'); }); drawDetail(); } },
+            AK.TYPES[k].label, h('span', { class: 'ct' }, n));
+          g.append(b);
+        });
+        box.append(h('div', { class: 'stack', style: 'gap:6px' }, h('h3', { class: 'mono' }, sl.name), g));
+      });
+      box.append(detail);
+      function drawDetail() {
+        clear(detail);
+        if (!chosen) return;
+        var cols = [];
+        W.forEach(function (x) { if (x.type === chosen && !x.never && cols.indexOf(x.color) < 0) cols.push(x.color); });
+        var sw = h('div', { class: 'swatches', role: 'group', 'aria-label': 'Farbe' });
+        var anyBtn = h('button', { class: 'chip', type: 'button', 'aria-pressed': 'true', onclick: function () { color = ''; upd(); } }, 'Farbe egal');
+        cols.forEach(function (cid) {
+          sw.append(h('button', { class: 'sw', type: 'button', style: '--c:' + hex(cid), 'aria-label': cname(cid), title: cname(cid), 'data-c': cid, 'aria-pressed': 'false',
+            onclick: function () { color = cid; upd(); } }));
+        });
+        function upd() {
+          anyBtn.setAttribute('aria-pressed', color ? 'false' : 'true');
+          Array.prototype.forEach.call(sw.children, function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-c') === color ? 'true' : 'false'); });
+        }
+        detail.append(h('div', { class: 'card stack' },
+          h('b', null, AK.TYPES[chosen].label),
+          cols.length ? h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'flabel' }, 'Farbe (optional)'), h('div', { class: 'row' }, anyBtn), sw)
+            : h('span', { class: 'muted small' }, 'Davon hast du noch nichts im Schrank. Ankleide meldet das bei den Vorschlägen.'),
+          h('button', { class: 'btn', type: 'button', onclick: function () {
+            var rep = addMust(color ? { kind: 'type', type: chosen, color: color } : { kind: 'type', type: chosen });
+            toast((rep ? 'Ersetzt: ' + rep + '. ' : '') + 'Wunsch hinzugefügt: ' + typeLabel(chosen) + (color ? ' in ' + cname(color) : ''));
+            todayChanged(); close();
+          } }, ico('plus'), 'Als Wunsch hinzufügen')));
+        upd();
+      }
+    }
+    draw();
+  });
+}
+;
+/* ---- ui4.js ---- */
+/* ===== Ankleide: Oberfläche, Teil 4 (Tabs „Schrank“ und „Scan“, Bearbeiten-Sheet) ===== */
+
+/* ---------- gemeinsame Formular-Bausteine ---------- */
+function typeSelect(id, value, onChange, placeholder) {
+  var sel = h('select', { id: id });
+  if (placeholder) sel.append(h('option', { value: '' }, placeholder));
+  AK.SLOTS.forEach(function (sl) {
+    var g = h('optgroup', { label: sl.name });
+    Object.keys(AK.TYPES).forEach(function (k) { if (AK.TYPES[k].slot === sl.id) g.append(h('option', { value: k }, AK.TYPES[k].label)); });
+    sel.append(g);
+  });
+  sel.value = value || '';
+  sel.addEventListener('change', function () { if (sel.value) onChange(sel.value); });
+  return sel;
+}
+function applyType(d, t) {
+  var T = AK.TYPES[t]; if (!T) return;
+  d.type = t; d.slot = T.slot; d.fmin = T.fmin; d.fmax = T.fmax; d.w = T.w; d.c = T.c;
+  d.a = T.a || 0; d.s = (T.s || []).slice(); d.water = !!T.water;
+}
+function colorPicker(get, set, label) {
+  var name = h('span', { class: 'muted small' });
+  var sw = h('div', { class: 'swatches', role: 'group', 'aria-label': label || 'Farbe' });
+  AK.COLORS.forEach(function (c) {
+    sw.append(h('button', { class: 'sw', type: 'button', style: '--c:' + c.hex, 'aria-label': c.name, title: c.name, 'data-c': c.id, 'aria-pressed': 'false',
+      onclick: function () { set(c.id); wrap.upd(); } }));
+  });
+  var wrap = h('div', { class: 'stack', style: 'gap:8px' }, h('div', { class: 'row', style: 'justify-content:space-between' }, h('span', { class: 'flabel' }, label || 'Farbe'), name), sw);
+  wrap.upd = function () {
+    var v = get();
+    name.textContent = v ? cname(v) : 'keine';
+    Array.prototype.forEach.call(sw.children, function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-c') === v ? 'true' : 'false'); });
+  };
+  wrap.upd();
+  return wrap;
+}
+function patternSeg(get, set) {
+  return seg(AK.PATTERNS.map(function (p) { return { id: p.id, label: p.id === 'print' ? 'Print' : p.name }; }), get, set, 'Muster');
+}
+function labeled(text, el, forId) {
+  return h(forId ? 'label' : 'div', { class: 'field', for: forId || null }, h('span', null, text), el);
+}
+function warmText(w) { return w < 1 ? 'sehr leicht' : (w < 2 ? 'leicht' : (w < 3 ? 'mittel' : (w < 5 ? 'warm' : 'sehr warm'))); }
+
+/* ---------- Bearbeiten-Sheet ---------- */
+function openEditor(item, opt) {
+  opt = opt || {};
+  var isNew = !item;
+  var d = item ? JSON.parse(JSON.stringify(item))
+    : AK.normalize({ id: uid(), name: '', type: opt.type || 'tshirt', color: opt.color || 'weiss', pattern: 'uni', fav: false, basic: false, never: false, avail: true, photo: null, wears: 0, last: null });
+  var demoAtStart = isDemo(), keepDemo = { v: false }, colorTouched = !isNew;
+  openSheet(isNew ? 'Neues Teil' : 'Teil bearbeiten', function (body, close) {
+    var ups = [];
+    function up() { ups.forEach(function (f) { f(); }); }
+
+    /* Foto */
+    var prev = h('div');
+    ups.push(function () { clear(prev); prev.append(thumbEl(d, { size: 'lg', label: true })); });
+    var file = h('input', { type: 'file', accept: 'image/*', id: 'ed-photo', class: 'vh' });
+    var fileTxt = h('span');
+    var fileLbl = h('label', { class: 'btn ghost small filebtn' }, ico('img'), fileTxt, file);
+    var rm = h('button', { class: 'btn ghost small', type: 'button', onclick: function () { d.photo = null; up(); } }, ico('x'), 'Foto entfernen');
+    var status = h('div', { class: 'status', 'aria-live': 'polite' });
+    ups.push(function () { fileTxt.textContent = d.photo ? 'Foto ändern' : 'Foto hinzufügen'; rm.hidden = !d.photo; });
+    file.addEventListener('change', function () {
+      var f = file.files && file.files[0]; if (!f) return;
+      status.textContent = 'Foto wird verkleinert …'; status.classList.add('busy');
+      processPhoto(f).then(function (r) {
+        d.photo = r.thumb;
+        if (!colorTouched && r.color) { d.color = r.color; status.textContent = 'Farbe erkannt: ' + cname(r.color) + '. Passe sie an, falls nötig.'; }
+        else status.textContent = 'Foto übernommen.';
+      }).catch(function () {
+        status.textContent = 'Das Bild ließ sich nicht lesen. Versuche ein anderes Foto (JPEG oder PNG).';
+      }).then(function () { status.classList.remove('busy'); file.value = ''; up(); });
+    });
+
+    /* Name, Art, Farbe, Muster */
+    var name = h('input', { type: 'text', id: 'ed-name', maxlength: '60', autocomplete: 'off' });
+    name.value = d.name;
+    name.addEventListener('input', function () { d.name = name.value; });
+    ups.push(function () { name.placeholder = autoName(d); });
+    var tsel = typeSelect('ed-type', d.type, function (t) { applyType(d, t); up(); });
+    var colors = colorPicker(function () { return d.color; }, function (v) { d.color = v; colorTouched = true; up(); });
+    var pat = patternSeg(function () { return d.pattern; }, function (v) { d.pattern = v; up(); });
+    ups.push(colors.upd); ups.push(pat.upd);
+
+    /* Dresscode, Wärme, Komfort, Sport, Saison */
+    function lvSel(id, key) {
+      var s = h('select', { id: id });
+      AK.LEVELS.forEach(function (lv) { s.append(h('option', { value: String(lv.id) }, lv.id + ' · ' + lv.name)); });
+      s.addEventListener('change', function () {
+        d[key] = Number(s.value);
+        if (d.fmin > d.fmax) { if (key === 'fmin') d.fmax = d.fmin; else d.fmin = d.fmax; }
+        up();
+      });
+      ups.push(function () { s.value = String(d[key]); });
+      return s;
+    }
+    var fmin = lvSel('ed-fmin', 'fmin'), fmax = lvSel('ed-fmax', 'fmax');
+    var warm = h('input', { type: 'range', id: 'ed-warm', min: '0', max: '6', step: '0.5' });
+    var warmOut = h('span', { class: 'muted small' });
+    warm.addEventListener('input', function () { d.w = Number(warm.value); warmOut.textContent = d.w + ' · ' + warmText(d.w); });
+    ups.push(function () { warm.value = String(d.w); warmOut.textContent = d.w + ' · ' + warmText(d.w); });
+    var comfort = seg([{ id: 1, label: 'Steif' }, { id: 2, label: 'Normal' }, { id: 3, label: 'Bequem' }], function () { return d.c; }, function (v) { d.c = v; }, 'Komfort');
+    var sport = seg([{ id: 0, label: 'Nein' }, { id: 1, label: 'Bedingt' }, { id: 2, label: 'Ja' }], function () { return d.a || 0; }, function (v) { d.a = v; }, 'Sporttauglich');
+    var seasons = chipGroup(AK.SEASONS.map(function (s) { return { id: s.id, label: s.name }; }),
+      function (k) { return (d.s || []).indexOf(k) >= 0; },
+      function (k) { d.s = d.s || []; var i = d.s.indexOf(k); if (i >= 0) d.s.splice(i, 1); else d.s.push(k); }, 'Jahreszeiten');
+    ups.push(comfort.upd); ups.push(sport.upd); ups.push(seasons.upd);
+    ups.push(function () { tsel.value = d.type; });
+
+    /* Schalter */
+    var checks = h('div', { class: 'stack', style: 'gap:2px' },
+      checkbox('ed-water', 'Wetterfest (Regen, Schnee)', function () { return d.water; }, function (v) { d.water = v; }),
+      checkbox('ed-fav', 'Lieblingsteil', function () { return d.fav; }, function (v) { d.fav = v; up(); }),
+      checkbox('ed-basic', 'Basic (lässt sich mit fast allem kombinieren)', function () { return d.basic; }, function (v) { d.basic = v; up(); }),
+      checkbox('ed-never', 'Nie tragen (bleibt im Schrank, wird nie vorgeschlagen)', function () { return d.never; }, function (v) { d.never = v; up(); }),
+      checkbox('ed-wash', 'In der Wäsche (gerade nicht verfügbar)', function () { return d.avail === false; }, function (v) { d.avail = !v; up(); }));
+    Array.prototype.forEach.call(checks.children, function (c) { ups.push(c.upd); });
+
+    var info = null;
+    if (!isNew) {
+      info = h('div', { class: 'mono' }, (d.wears ? 'Getragen ' + d.wears + '×' + (d.last ? ' · zuletzt ' + deDate(d.last) : '') : 'Noch nicht getragen') + (d.demo ? ' · Beispielteil' : ''));
+    }
+    var demoChoice = null;
+    if (isNew && demoAtStart) {
+      demoChoice = h('div', { class: 'banner' },
+        h('span', { class: 'small' }, 'Du siehst noch den Beispielschrank. Mit dem Speichern beginnt dein eigener Schrank.'),
+        checkbox('ed-keepdemo', 'Beispielteile behalten und mein Teil dazulegen', function () { return keepDemo.v; }, function (v) { keepDemo.v = v; }));
+    }
+
+    function save() {
+      d.name = (d.name || '').trim() || autoName(d);
+      if (d.fmin > d.fmax) { var t = d.fmin; d.fmin = d.fmax; d.fmax = t; }
+      var adopted = false;
+      if (isDemo()) { if (!isNew || keepDemo.v) adopted = adoptDemo(true); }
+      Store.putItem(d);
+      V.needsRecalc = true;
+      close();
+      toast((isNew ? 'Gespeichert: ' + d.name + '.' : 'Änderungen gespeichert.') + (adopted ? ' Der Beispielschrank ist jetzt dein Schrank.' : ''));
+      changed();
+    }
+    var foot = h('div', { class: 'foot' }, h('button', { class: 'btn accent block', type: 'button', id: 'ed-save', onclick: save }, ico('check'), 'Speichern'));
+    var extra = null;
+    if (!isNew) {
+      extra = h('div', { class: 'stack' },
+        h('button', { class: 'btn ghost', type: 'button', onclick: function () {
+          var rep = addMust({ kind: 'item', id: d.id });
+          close(); showTab('today'); todayChanged(true);
+          toast((rep ? 'Ersetzt: ' + rep + '. ' : '') + d.name + ' ist als Wunschteil gesetzt.');
+        } }, ico('star'), 'Heute unbedingt tragen'),
+        confirmBtn('Teil löschen', '„' + d.name + '“ wirklich löschen? Das lässt sich nicht rückgängig machen.', 'Ja, löschen', function () {
+          if (isDemo()) adoptDemo(true);
+          Store.delItem(d.id);
+          V.ctx.must = V.ctx.must.filter(function (m) { return !(m.kind === 'item' && m.id === d.id); });
+          V.needsRecalc = true; close(); toast('Gelöscht: ' + d.name); changed();
+        }));
+    }
+
+    body.append(h('div', { class: 'form' },
+      demoChoice,
+      h('div', { class: 'photo-row' }, prev, h('div', { class: 'stack' }, fileLbl, rm, status)),
+      labeled('Name', name, 'ed-name'),
+      labeled('Art', tsel, 'ed-type'),
+      colors,
+      h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'flabel' }, 'Muster'), pat),
+      h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'flabel' }, 'Dresscode'),
+        h('div', { class: 'pair' }, labeled('von', fmin, 'ed-fmin'), labeled('bis', fmax, 'ed-fmax')),
+        h('span', { class: 'muted small' }, 'Beim Wechsel der Art setzt Ankleide passende Werte, du kannst sie hier anpassen.')),
+      h('div', { class: 'field' }, h('div', { class: 'row', style: 'justify-content:space-between' }, h('label', { class: 'flabel', for: 'ed-warm' }, 'Wärme'), warmOut), warm),
+      h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'flabel' }, 'Komfort'), comfort),
+      h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'flabel' }, 'Sporttauglich'), sport),
+      h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'flabel' }, 'Jahreszeiten'), seasons, h('span', { class: 'muted small' }, 'Keine Auswahl heißt: ganzjährig.')),
+      checks, info, extra, foot));
+    up();
+  });
+}
+
+/* ---------- Tab „Schrank“ ---------- */
+V.closet = { q: '', slot: 'all', f: {} };
+var CLOSET_FILTERS = [
+  { id: 'fav', label: 'Lieblinge', test: function (x) { return x.fav; } },
+  { id: 'basic', label: 'Basics', test: function (x) { return x.basic; } },
+  { id: 'never', label: 'Nie tragen', test: function (x) { return x.never; } },
+  { id: 'wash', label: 'In der Wäsche', test: function (x) { return x.avail === false; } }
+];
+function norm(s) { return String(s || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss'); }
+var CL = {};
+registerPanel('closet', {
+  build: function (p) {
+    clear(p);
+    CL.banner = demoBanner();
+    var q = h('input', { type: 'search', id: 'closet-q', placeholder: 'Suchen: Name, Art oder Farbe', 'aria-label': 'Schrank durchsuchen', autocomplete: 'off' });
+    q.value = V.closet.q;
+    q.addEventListener('input', function () { V.closet.q = q.value; drawCloset(); });
+    var add = h('button', { class: 'btn accent', type: 'button', id: 'btn-add', 'aria-label': 'Neues Teil anlegen', onclick: function () { openEditor(null); } }, ico('plus'), 'Neu');
+    CL.slots = h('div');
+    CL.filters = chipGroup(CLOSET_FILTERS, function (k) { return !!V.closet.f[k]; }, function (k) { V.closet.f[k] = !V.closet.f[k]; drawCloset(); }, 'Filter');
+    CL.count = h('div', { class: 'countline' });
+    CL.grid = h('div', { class: 'closet', id: 'closet-grid' });
+    p.append(CL.banner, h('div', { class: 'sec stack' }, h('div', { class: 'toolbar' }, q, add), CL.slots, CL.filters), h('div', { class: 'sec stack' }, CL.count, CL.grid));
+    drawCloset();
+  },
+  refresh: function () { CL.banner.upd(); drawCloset(); }
+});
+function drawCloset() {
+  var W = wardrobe();
+  clear(CL.slots);
+  var slotOpts = [{ id: 'all', label: 'Alle', count: W.length }].concat(AK.SLOTS.map(function (s) {
+    return { id: s.id, label: s.name, count: W.filter(function (x) { return x.slot === s.id; }).length };
+  }));
+  var sg = chipGroup(slotOpts, function (k) { return V.closet.slot === k; }, function (k) { V.closet.slot = k; drawCloset(); var b = CL.slots.querySelector('[data-v="' + k + '"]'); if (b) b.focus(); }, 'Bereich');
+  sg.classList.add('scroll');
+  CL.slots.append(sg);
+  CL.filters.upd();
+  var qq = norm(V.closet.q).trim();
+  var order = {}; AK.SLOTS.forEach(function (s, i) { order[s.id] = i; });
+  var list = W.filter(function (x) {
+    if (V.closet.slot !== 'all' && x.slot !== V.closet.slot) return false;
+    for (var i = 0; i < CLOSET_FILTERS.length; i++) if (V.closet.f[CLOSET_FILTERS[i].id] && !CLOSET_FILTERS[i].test(x)) return false;
+    if (qq && norm(x.name + ' ' + typeLabel(x.type) + ' ' + cname(x.color)).indexOf(qq) < 0) return false;
+    return true;
+  }).sort(function (a, b) { return (order[a.slot] - order[b.slot]) || a.name.localeCompare(b.name, 'de'); });
+  clear(CL.count); clear(CL.grid);
+  var wash = W.filter(function (x) { return x.avail === false; });
+  CL.count.append(h('span', { class: 'mono' }, list.length === W.length ? fmtN(W.length) + ' Teile' : fmtN(list.length) + ' von ' + fmtN(W.length) + ' Teilen',
+    wash.length ? ' · ' + wash.length + ' in der Wäsche' : ''));
+  if (wash.length && V.closet.f.wash) {
+    CL.count.append(h('button', { class: 'btn ghost small', type: 'button', onclick: function () {
+      wash.forEach(function (x) { var c = JSON.parse(JSON.stringify(x)); c.avail = true; Store.putItem(c); });
+      V.needsRecalc = true; toast('Alles wieder sauber: ' + wash.length + ' Teile verfügbar.'); changed();
+    } }, ico('wash'), 'Alles wieder sauber'));
+  }
+  if (!S.ready) { CL.grid.append(h('div', { class: 'empty' }, 'Dein Schrank wird geladen …')); return; }
+  if (!W.length) {
+    CL.grid.append(h('div', { class: 'card empty stack', style: 'grid-column:1/-1' },
+      h('h3', null, 'Noch keine Teile'),
+      h('p', { style: 'margin:0' }, 'Lege dein erstes Teil an oder fotografiere es im Tab „Scan“.'),
+      h('div', { class: 'row', style: 'justify-content:center' },
+        h('button', { class: 'btn', type: 'button', onclick: function () { openEditor(null); } }, ico('plus'), 'Teil anlegen'),
+        h('button', { class: 'btn ghost', type: 'button', onclick: function () { Store.setSetting('demoOff', false); V.needsRecalc = true; changed(); } }, 'Beispielschrank zeigen'))));
+    return;
+  }
+  if (!list.length) { CL.grid.append(h('div', { class: 'empty', style: 'grid-column:1/-1' }, 'Nichts gefunden. Ändere die Suche oder die Filter.')); return; }
+  list.forEach(function (x) {
+    var off = x.never || x.avail === false;
+    var lbl = [x.name, typeLabel(x.type), cname(x.color)];
+    if (x.fav) lbl.push('Lieblingsteil'); if (x.basic) lbl.push('Basic');
+    if (x.never) lbl.push('nie tragen'); else if (x.avail === false) lbl.push('in der Wäsche');
+    CL.grid.append(h('button', { class: 'gcard' + (off ? ' off' : ''), type: 'button', 'aria-label': lbl.join(', '), onclick: function () { openEditor(x); } },
+      thumbEl(x, { badges: true, label: true }),
+      h('span', { class: 'nm' }, x.name, x.wears ? h('small', null, x.wears + '× getragen') : null)));
+  });
+}
+
+/* ---------- Tab „Scan“ ---------- */
+V.scan = null;
+var SC = { token: 0 };
+registerPanel('scan', {
+  build: function (p) { drawScan(p); },
+  refresh: function (p) {
+    if (p.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { V.dirty.scan = true; return; }
+    drawScan(p);
+  }
+});
+function newScan(fromPhoto) {
+  SC.token++;
+  V.scan = { item: { id: 'scan-' + uid(), name: '', type: '', slot: null, color: 'grau', pattern: 'uni', photo: null, fav: false, basic: false, never: false, avail: true, wears: 0, last: null },
+    blob: null, status: '', busy: false, out: null, level: null, saved: null, touched: {}, keepDemo: false, fromPhoto: !!fromPhoto };
+}
+function scanReady() { return V.scan && V.scan.item.type && AK.TYPES[V.scan.item.type]; }
+function scanItem() { var it = JSON.parse(JSON.stringify(V.scan.item)); return AK.normalize(it); }
+function setScanStatus(txt, busy) {
+  if (!V.scan) return;
+  V.scan.status = txt; V.scan.busy = !!busy;
+  var el = $('scan-status');
+  if (el) { el.textContent = txt; el.classList.toggle('busy', !!busy); }
+}
+function scanPhoto(file) {
+  newScan(true);
+  var tok = SC.token;
+  V.scan.status = 'Foto wird verkleinert …'; V.scan.busy = true;
+  drawScan($('p-scan'));
+  processPhoto(file).then(function (r) {
+    if (tok !== SC.token) return;
+    V.scan.item.photo = r.thumb; V.scan.blob = r.blob; V.scan.item.color = r.color || 'grau';
+    V.scan.status = 'Farbe erkannt: ' + cname(V.scan.item.color) + '. Wähle die Art aus.'; V.scan.busy = false;
+    drawScan($('p-scan'));
+    aiDetect(tok);
+  }).catch(function () {
+    if (tok !== SC.token) return;
+    V.scan.status = 'Das Bild ließ sich nicht lesen. Versuche ein anderes Foto (JPEG oder PNG) oder gib das Teil ohne Foto ein.'; V.scan.busy = false;
+    drawScan($('p-scan'));
+  });
+}
+/* Erkennung mit Claude, nur im Artifact mit Bildfreigabe. Jeder Fehler führt still zur Eingabe per Hand. */
+function aiPrompt() {
+  return 'Auf dem Foto ist ein einzelnes Kleidungsstück oder Accessoire. Bestimme Art, Hauptfarbe und Muster.\n' +
+    'Antworte nur mit einem JSON-Objekt in genau dieser Form:\n' +
+    '{"type":"<type-ID>","color":"<color-ID>","pattern":"<pattern-ID>","name":"<kurzer deutscher Name, höchstens 4 Wörter>"}\n' +
+    'Erlaubte type-IDs: ' + Object.keys(AK.TYPES).map(function (k) { return k + ' (' + AK.TYPES[k].label + ')'; }).join(', ') + '\n' +
+    'Erlaubte color-IDs: ' + AK.COLORS.map(function (c) { return c.id + ' (' + c.name + ')'; }).join(', ') + '\n' +
+    'Erlaubte pattern-IDs: ' + AK.PATTERNS.map(function (p) { return p.id + ' (' + p.name + ')'; }).join(', ') + '\n' +
+    'Nimm die nächstliegende erlaubte ID. Ist kein Kleidungsstück zu erkennen, antworte {"type":null}.';
+}
+function validAI(r) {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
+  var o = {};
+  if (typeof r.type === 'string' && AK.TYPES[r.type]) o.type = r.type;
+  if (typeof r.color === 'string' && AK.COLORS.some(function (c) { return c.id === r.color; })) o.color = r.color;
+  if (typeof r.pattern === 'string' && AK.PATTERNS.some(function (p) { return p.id === r.pattern; })) o.pattern = r.pattern;
+  if (typeof r.name === 'string') { var n = r.name.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 40); if (n) o.name = n; }
+  return (o.type || o.color) ? o : null;
+}
+function aiDetect(tok) {
+  if (!IN_CLAUDE || !V.scan || !V.scan.blob) return;
+  var blob = V.scan.blob, sample = null;
+  Promise.resolve().then(function () { return window.claude.use('sample'); }).then(function (s) {
+    sample = s;
+    if (!sample || typeof sample.json !== 'function') return null;
+    return sample.limits ? sample.limits().catch(function () { return null; }) : null;
+  }).then(function (lim) {
+    if (!lim || !lim.images || tok !== SC.token) return null;
+    setScanStatus('Claude erkennt Art, Farbe und Muster …', true);
+    return sample.json(aiPrompt(), { images: [blob], modelTier: 'quick' });
+  }).then(function (r) {
+    if (tok !== SC.token || !V.scan) return;
+    if (r === null || r === undefined) { if (V.scan.busy) setScanStatus('Farbe erkannt: ' + cname(V.scan.item.color) + '. Wähle die Art aus.', false); return; }
+    var o = validAI(r), it = V.scan.item, t = V.scan.touched;
+    if (!o) { setScanStatus('Claude war sich nicht sicher. Wähle die Art aus.', false); return; }
+    if (o.type && !t.type) { applyType(it, o.type); }
+    if (o.color && !t.color) it.color = o.color;
+    if (o.pattern && !t.pattern) it.pattern = o.pattern;
+    if (o.name && !t.name && !it.name) it.name = o.name;
+    V.scan.status = 'Erkannt: ' + [o.type ? typeLabel(o.type) : null, o.color ? cname(o.color) : null, o.pattern ? (AK.PATTERNS.filter(function (p) { return p.id === o.pattern; })[0] || {}).name : null].filter(Boolean).join(', ') + '. Prüfe die Angaben.';
+    V.scan.busy = false;
+    drawScan($('p-scan'));
+  }).catch(function () {
+    if (tok !== SC.token || !V.scan) return;
+    setScanStatus('Farbe erkannt: ' + cname(V.scan.item.color) + '. Wähle die Art aus.', false);
+  });
+}
+
+function drawScan(p) {
+  if (!p) return;
+  clear(p);
+  var cam = h('input', { type: 'file', accept: 'image/*', capture: 'environment', id: 'scan-cam', class: 'vh' });
+  var pick = h('input', { type: 'file', accept: 'image/*', id: 'scan-pick', class: 'vh' });
+  [cam, pick].forEach(function (inp) {
+    inp.addEventListener('change', function () { var f = inp.files && inp.files[0]; if (f) scanPhoto(f); inp.value = ''; });
+  });
+  p.append(sec('Teil scannen', h('div', { class: 'stack' },
+    h('p', { style: 'margin:0' }, 'Fotografiere ein Kleidungsstück, am besten flach vor ruhigem Hintergrund. Ankleide erkennt die Farbe, kombiniert das Teil mit deinem Schrank und sagt dir beim Einkaufen, ob es passt.'),
+    h('div', { class: 'row' },
+      h('label', { class: 'btn accent filebtn grow' }, ico('cam'), 'Foto aufnehmen', cam),
+      h('label', { class: 'btn ghost filebtn grow' }, ico('img'), 'Foto wählen', pick)),
+    h('div', null, h('button', { class: 'btn ghost small', type: 'button', onclick: function () { newScan(false); V.scan.status = 'Wähle Art und Farbe des Teils.'; drawScan(p); } }, ico('edit'), 'Ohne Foto eingeben')))));
+  if (!V.scan) {
+    p.append(h('div', { class: 'card empty sec' }, IN_CLAUDE ? 'Mit deiner Freigabe erkennt Claude auch die Art und das Muster.' : 'Die Art wählst du nach dem Foto aus. Die Farbe schlägt Ankleide selbst vor.'));
+    return;
+  }
+  var it = V.scan.item, t = V.scan.touched;
+  var tsel = typeSelect('scan-type', it.type, function (v) { applyType(it, v); t.type = true; V.scan.out = null; drawScan(p); }, 'Art wählen …');
+  var name = h('input', { type: 'text', id: 'scan-name', maxlength: '60', autocomplete: 'off', placeholder: it.type ? autoName(it) : 'Name (optional)' });
+  name.value = it.name;
+  name.addEventListener('input', function () { it.name = name.value; t.name = true; });
+  var colors = colorPicker(function () { return it.color; }, function (v) { it.color = v; t.color = true; V.scan.out = null; refreshPrev(); drawOut(); });
+  var pat = patternSeg(function () { return it.pattern; }, function (v) { it.pattern = v; t.pattern = true; V.scan.out = null; refreshPrev(); drawOut(); });
+  var prev = h('div');
+  function refreshPrev() { clear(prev); prev.append(thumbEl(scanReady() ? scanItem() : it, { size: 'lg', label: !!it.type })); }
+  refreshPrev();
+  var ready = !!scanReady();
+  var out = h('div', { class: 'stack', id: 'scan-out', 'aria-live': 'polite' });
+  var bCombine = h('button', { class: 'btn', type: 'button', id: 'scan-combine', disabled: !ready, onclick: function () { V.scan.out = 'combine'; drawOut(); scrollToEl(out); } }, 'Mit Schrank kombinieren');
+  var bShop = h('button', { class: 'btn ghost', type: 'button', id: 'scan-shop', disabled: !ready, onclick: function () { V.scan.out = 'shop'; drawOut(); scrollToEl(out); } }, 'Einkaufs-Check');
+  var saveBox = h('div', { class: 'stack' });
+  function drawSave() {
+    clear(saveBox);
+    if (V.scan.saved) {
+      saveBox.append(h('div', { class: 'row' }, h('span', { class: 'status' }, 'Im Schrank gespeichert.'),
+        h('button', { class: 'btn ghost small', type: 'button', onclick: function () { showTab('closet'); } }, ico('arrow'), 'Zum Schrank')));
+      return;
+    }
+    if (isDemo()) saveBox.append(checkbox('scan-keepdemo', 'Beispielteile behalten', function () { return V.scan.keepDemo; }, function (v) { V.scan.keepDemo = v; }));
+    saveBox.append(h('button', { class: 'btn ghost', type: 'button', id: 'scan-save', disabled: !ready, onclick: scanSave }, ico('hanger'), 'In den Schrank'));
+  }
+  drawSave();
+  function scanSave() {
+    if (!scanReady()) return;
+    var x = scanItem(), oldId = x.id;
+    x.id = uid(); x.name = (x.name || '').trim() || autoName(x); delete x.demo;
+    if (isDemo() && V.scan.keepDemo) adoptDemo(true);
+    Store.putItem(x);
+    V.ctx.must.forEach(function (m) { if (m.kind === 'item' && m.item && m.item.id === oldId) { delete m.item; m.id = x.id; } });
+    V.scan.saved = x.id; V.needsRecalc = true;
+    toast('Gespeichert: ' + x.name);
+    changed(); drawSave();
+  }
+  function drawOut() {
+    clear(out);
+    if (!V.scan.out || !scanReady()) return;
+    var x = scanItem(), W = wardrobe().filter(function (y) { return y.id !== x.id && y.id !== V.scan.saved; });
+    if (V.scan.out === 'shop') {
+      var sc = AK.shopCheck(W, x, todayStr());
+      var box = h('div', { class: 'card stack' }, h('div', { class: 'mono' }, 'Einkaufs-Check' + (isDemo() ? ' · mit dem Beispielschrank' : '')),
+        h('div', { class: 'verdict t-' + sc.tier }, sc.verdict));
+      if (sc.tier !== 'acc') {
+        box.append(h('div', { class: 'kpi' }, h('div', null, h('b', null, fmtN(sc.n)), h('span', { class: 'mono' }, 'stimmige Outfits')),
+          h('div', null, h('b', null, sc.partners.length), h('span', { class: 'mono' }, 'starke Partner'))));
+        var max = 1; Object.keys(sc.byLevel).forEach(function (k) { if (sc.byLevel[k] > max) max = sc.byLevel[k]; });
+        var bars = h('div', { class: 'bars', role: 'list', 'aria-label': 'Outfits nach Dresscode-Stufe' });
+        Object.keys(sc.byLevel).forEach(function (k) {
+          var v = sc.byLevel[k];
+          bars.append(h('div', { class: 'br', role: 'listitem' }, h('span', null, levelName(Number(k))),
+            h('span', { class: 'track', 'aria-hidden': 'true' }, h('i', { style: 'width:' + Math.round(v / max * 100) + '%' })), h('span', { class: 'v' }, fmtN(v))));
+        });
+        box.append(h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Nach Dresscode-Stufe'), bars));
+        if (sc.partners.length) {
+          var pl = h('div', { class: 'plist' });
+          sc.partners.forEach(function (pp) { pl.append(prow(pp)); });
+          box.append(h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Passt besonders zu'), pl));
+        }
+        box.append(h('p', { class: 'muted small', style: 'margin:0' }, 'Gezählt werden stimmige Outfits bei 4, 15 und 25 °C über alle Dresscode-Stufen, für die das Teil gedacht ist.'));
+      }
+      out.append(box);
+      return;
+    }
+    /* Kombinieren: Stufe innerhalb der Spanne des Teils, Wetter und Rahmen aus „Heute“ */
+    var L = V.scan.level;
+    if (L == null || L < x.fmin || L > x.fmax) L = (V.ctx.level >= x.fmin && V.ctx.level <= x.fmax) ? V.ctx.level : Math.round((x.fmin + x.fmax) / 2);
+    V.scan.level = L;
+    var lvOpts = [];
+    for (var i = x.fmin; i <= x.fmax; i++) lvOpts.push({ id: i, label: SHORT[i] });
+    var ctx = engineCtx(V.ctx, { level: L, must: [{ kind: 'item', item: x }], activity: isSportAct(V.ctx.activity) && L > 1 ? 'alltag' : V.ctx.activity });
+    var r = AK.suggest(W, ctx, { n: 3 });
+    out.append(h('div', { class: 'res-head' }, h('h2', { class: 'mono' }, 'Mit deinem Schrank'), h('span', { class: 'mono' }, fmtN(r.total) + ' Kombinationen')),
+      h('div', { class: 'stack', style: 'gap:6px' }, h('span', { class: 'flabel' }, 'Dresscode'),
+        chipGroup(lvOpts, function (k) { return k === V.scan.level; }, function (k) { V.scan.level = k; drawOut(); }, 'Dresscode für die Kombination')),
+      h('div', { class: 'small muted' }, fmtT(ctx.weather.temp) + ' · ' + trName(ctx.transport) + ' · Wetter und Rahmen aus „Heute“' + (isDemo() ? ' · Beispielschrank' : '')));
+    if (r.missing) out.append(h('div', { class: 'card' }, 'Dir fehlen noch: ' + r.missing.join(', ') + '.'));
+    r.warns.forEach(function (w) { out.append(h('div', { class: 'alert small' }, w)); });
+    var wished = function (y) { return y.id === x.id; };
+    r.outfits.forEach(function (o, i) { out.append(outfitCard(o, { i: i, ctx: ctx, wished: wished })); });
+    out.append(h('button', { class: 'btn ghost', type: 'button', onclick: function () {
+      var m = V.scan.saved ? { kind: 'item', id: V.scan.saved } : { kind: 'item', item: scanItem() };
+      addMust(m); V.ctx.level = L; showTab('today'); todayChanged(true);
+      toast('Das gescannte Teil ist als Wunschteil gesetzt.');
+    } }, ico('arrow'), 'In „Heute“ weiter anpassen'));
+  }
+  p.append(sec('Erkannt', h('div', { class: 'stack' },
+    h('div', { class: 'scan-preview' }, prev, h('div', { class: 'stack', style: 'gap:8px' },
+      h('div', { class: 'status' + (V.scan.busy ? ' busy' : ''), id: 'scan-status', 'aria-live': 'polite' }, V.scan.status),
+      labeled('Art', tsel, 'scan-type'))),
+    colors,
+    h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'flabel' }, 'Muster'), pat),
+    labeled('Name', name, 'scan-name'))));
+  p.append(h('div', { class: 'sec stack' }, bCombine, bShop, saveBox), h('div', { class: 'sec' }, out));
+  drawOut();
+}
+;
+/* ---- ui5.js ---- */
+/* ===== Ankleide: Oberfläche, Teil 5 (Tab „Mehr“) – folgt ===== */
+registerPanel("more", { build: function (p) { clear(p); p.append(h("div", { class: "empty" }, "Mehr folgt.")); }, refresh: function () {} });
+;
+/* ---- Start ---- */
+initApp();
+Promise.resolve().then(function () { return Store.init(); }).catch(function (e) {
+  try { console.warn("Ankleide: Speicher nicht verfügbar", e); } catch (x) {}
+  S.mode = "local"; S.ready = true; onData();
+});
+</script>
+</body>
+</html>

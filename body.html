@@ -1,0 +1,18 @@
+<header class="top">
+  <div class="brand">Ankleide</div>
+  <div class="sync" id="sync" role="status" aria-live="polite"></div>
+</header>
+<main class="wrap">
+  <section id="p-today" class="panel" role="tabpanel" aria-labelledby="t-today" tabindex="-1"></section>
+  <section id="p-closet" class="panel" role="tabpanel" aria-labelledby="t-closet" tabindex="-1" hidden></section>
+  <section id="p-scan" class="panel" role="tabpanel" aria-labelledby="t-scan" tabindex="-1" hidden></section>
+  <section id="p-more" class="panel" role="tabpanel" aria-labelledby="t-more" tabindex="-1" hidden></section>
+</main>
+<nav class="tabs" role="tablist" aria-label="Bereiche">
+  <button type="button" role="tab" id="t-today" data-tab="today" aria-controls="p-today" aria-selected="true"><span class="ti" data-ico="sun"></span><span>Heute</span><i class="tick"></i></button>
+  <button type="button" role="tab" id="t-closet" data-tab="closet" aria-controls="p-closet" aria-selected="false" tabindex="-1"><span class="ti" data-ico="hanger"></span><span>Schrank</span><i class="tick"></i></button>
+  <button type="button" role="tab" id="t-scan" data-tab="scan" aria-controls="p-scan" aria-selected="false" tabindex="-1"><span class="ti" data-ico="cam"></span><span>Scan</span><i class="tick"></i></button>
+  <button type="button" role="tab" id="t-more" data-tab="more" aria-controls="p-more" aria-selected="false" tabindex="-1"><span class="ti" data-ico="more"></span><span>Mehr</span><i class="tick"></i></button>
+</nav>
+<div id="sheet-root"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

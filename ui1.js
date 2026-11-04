@@ -59,18 +59,40 @@ function toast(msg) {
   clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 3200);
 }
 
-/* Sheet: Overlay von unten */
+/* Sheet: Overlay von unten (Escape schließt, Fokus bleibt im Sheet und kehrt danach zurück) */
+var sheetKeys = null;
 function openSheet(title, build) {
   var root = $('sheet-root');
-  var close = function () { clear(root); document.body.style.overflow = ''; };
-  var sheet = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title });
+  var prev = root.firstChild ? null : document.activeElement;
+  if (sheetKeys) document.removeEventListener('keydown', sheetKeys);
+  var closed = false;
+  var close = function () {
+    if (closed) return; closed = true;
+    document.removeEventListener('keydown', keys); if (sheetKeys === keys) sheetKeys = null;
+    clear(root); document.body.style.overflow = '';
+    if (prev && prev.focus && document.contains(prev)) prev.focus();
+  };
+  var keys = function (ev) {
+    if (ev.key === 'Escape') { ev.preventDefault(); close(); return; }
+    if (ev.key !== 'Tab') return;
+    var f = Array.prototype.filter.call(sheet.querySelectorAll('button, input, select, textarea, a[href], [tabindex="0"]'), function (x) { return !x.disabled && x.offsetParent !== null; });
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (ev.shiftKey && (document.activeElement === first || document.activeElement === sheet)) { ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+  };
+  var sheet = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title, tabindex: '-1' });
   var head = h('div', { class: 'sheet-head' }, h('h2', null, title),
     h('button', { class: 'btn ghost small', type: 'button', 'aria-label': 'Schließen', onclick: close }, ico('x')));
   var body = h('div', { class: 'stack' });
   sheet.append(head, body);
   var back = h('div', { class: 'backdrop', onclick: function (ev) { if (ev.target === back) close(); } }, sheet);
+  if (root.firstChild && root._prev) prev = root._prev;
+  root._prev = prev;
   clear(root); root.append(back); document.body.style.overflow = 'hidden';
+  sheetKeys = keys; document.addEventListener('keydown', keys);
   build(body, close);
+  try { sheet.focus({ preventScroll: true }); } catch (e) { sheet.focus(); }
   return close;
 }
 
@@ -168,8 +190,8 @@ function isDemo() { return !S.items.length && !S.settings.demoOff; }
 function loadImg(file) {
   return new Promise(function (res, rej) {
     var url = URL.createObjectURL(file), im = new Image();
-    im.onload = function () { res(im); };
-    im.onerror = function () { rej(new Error('Bild nicht lesbar')); };
+    im.onload = function () { URL.revokeObjectURL(url); res(im); };
+    im.onerror = function () { URL.revokeObjectURL(url); rej(new Error('Bild nicht lesbar')); };
     im.src = url;
   });
 }
