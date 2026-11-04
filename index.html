@@ -335,6 +335,14 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   .photo-row, .scan-preview { grid-template-columns: 140px 1fr; }
   .thumb.lg { width: 140px; }
 }
+/* Am Rechner: Einstellungen links, Vorschläge rechts */
+@media (min-width: 960px) {
+  .wrap, header.top { max-width: 1120px; }
+  #p-today:not([hidden]) { display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 0 40px; align-items: start; }
+  #p-today > .banner { grid-column: 1 / -1; }
+  #p-scan, #p-more { max-width: 720px; margin-inline: auto; }
+  .closet { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
 </style>
 </head>
 <body>
@@ -1629,9 +1637,13 @@ function renderSync() {
   el.title = S.mode === 'db' ? 'Dein Schrank wird in deinem Claude-Konto gespeichert.' : 'Dein Schrank wird nur im Speicher dieses Browsers abgelegt.';
 }
 
-/* Wird von Store aufgerufen, sobald Daten da sind oder sich geändert haben */
-function onData() {
+/* Wird von Store aufgerufen, sobald Daten da sind oder sich geändert haben.
+   Im Konto-Modus kommen Snapshots oft in Serien, dann wird einmal gesammelt neu gezeichnet. */
+var dataTimer = null;
+function onData(now) {
   renderSync();
+  clearTimeout(dataTimer);
+  if (!now && S.mode === 'db') { dataTimer = setTimeout(function () { onData(true); }, 40); return; }
   if (V.ctx && V.ctx.must) {
     V.ctx.must = V.ctx.must.filter(function (m) { return m.kind !== 'item' || m.item || itemById(m.id); });
   }
@@ -1640,7 +1652,7 @@ function onData() {
   if (P && P.built) { P.refresh($('p-' + V.tab)); V.dirty[V.tab] = false; }
 }
 /* nach eigenen Änderungen: im lokalen Modus ruft Store kein onData auf */
-function changed() { onData(); }
+function changed() { onData(true); }
 
 /* Hell / Dunkel: nur in der eigenständigen Fassung wählbar, im Artifact entscheidet claude.ai */
 function themePref() { try { return localStorage.getItem('ankleide.theme') || 'auto'; } catch (e) { return 'auto'; } }
@@ -2033,8 +2045,7 @@ registerPanel('today', {
     var go = h('button', { class: 'btn accent block', type: 'button', id: 'btn-suggest', onclick: function () { recalc(); scrollToEl(res); } }, 'Outfits vorschlagen');
     var again = h('button', { class: 'btn ghost block', type: 'button', id: 'btn-reroll', onclick: reroll }, ico('dice'), 'Nochmal würfeln');
 
-    p.append(
-      banner,
+    p.append(banner, h('div', { class: 'today-form' },
       sec('Anlass · Dresscode', h('div', null, tape, lvName, lvHint)),
       sec('Wetter', h('div', { class: 'stack' }, presets,
         h('div', { class: 'tempbox' }, tempOut, h('div', null, range, h('div', { class: 'range-scale mono', 'aria-hidden': 'true' }, h('span', null, '−10'), h('span', null, '14'), h('span', null, '38'))), feels),
@@ -2043,8 +2054,8 @@ registerPanel('today', {
         h('label', { class: 'field', for: 'today-activity' }, h('span', null, 'Aktivität'), actSel), factors)),
       sec('Stil', h('div', { class: 'stack' }, bold, basics)),
       sec('Das soll rein', h('div', { class: 'stack' }, mustBox, h('div', null, addMustBtn))),
-      h('div', { class: 'sec stack' }, go, again),
-      res
+      h('div', { class: 'sec stack' }, go, again)),
+      h('div', { class: 'today-res sec' }, res)
     );
     TU.forEach(function (f) { f(); });
     if (S.ready) recalc();
@@ -2610,6 +2621,7 @@ function drawScan(p) {
     if (!V.scan.out || !scanReady()) return;
     var x = scanItem(), W = wardrobe().filter(function (y) { return y.id !== x.id && y.id !== V.scan.saved; });
     if (V.scan.out === 'shop') {
+      if (!W.length) { out.append(h('div', { class: 'card' }, 'Dein Schrank ist noch leer. Der Einkaufs-Check vergleicht das Teil mit deinen Teilen, lege also zuerst ein paar an.')); return; }
       var sc = AK.shopCheck(W, x, todayStr());
       var box = h('div', { class: 'card stack' }, h('div', { class: 'mono' }, 'Einkaufs-Check' + (isDemo() ? ' · mit dem Beispielschrank' : '')),
         h('div', { class: 'verdict t-' + sc.tier }, sc.verdict));
@@ -2910,7 +2922,7 @@ function drawWeek(box) {
     checkbox('pl-rain', 'Regen möglich', function () { return o.rain; }, function (v) { o.rain = v; }),
     h('button', { class: 'btn accent block', type: 'button', id: 'pl-go', onclick: function () { o.res = planWeek(o); drawMore(); scrollToEl($('pl-res')); } }, ico('cal'), 'Woche planen'));
   box.append(sec('Wochenplaner', h('div', { class: 'stack' },
-    h('p', { class: 'muted small', style: 'margin:0' }, 'Outfits für mehrere Tage ohne Wiederholung: Oberteile ruhen zwei Tage, Hosen und Schuhe dürfen öfter vorkommen. Fortbewegung und Farbmut kommen aus „Heute“.'), form)));
+    h('p', { class: 'muted small', style: 'margin:0' }, 'Outfits für mehrere Tage ohne Wiederholung: Oberteile kommen frühestens nach zwei Tagen wieder dran, Hosen und Schuhe dürfen öfter vorkommen. Fortbewegung und Farbmut kommen aus „Heute“.'), form)));
   var res = h('div', { id: 'pl-res', class: 'sec stack' });
   box.append(res);
   if (!o.res) return;

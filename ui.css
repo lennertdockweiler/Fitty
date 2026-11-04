@@ -157,3 +157,11 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
   .photo-row, .scan-preview { grid-template-columns: 140px 1fr; }
   .thumb.lg { width: 140px; }
 }
+/* Am Rechner: Einstellungen links, Vorschläge rechts */
+@media (min-width: 960px) {
+  .wrap, header.top { max-width: 1120px; }
+  #p-today:not([hidden]) { display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 0 40px; align-items: start; }
+  #p-today > .banner { grid-column: 1 / -1; }
+  #p-scan, #p-more { max-width: 720px; margin-inline: auto; }
+  .closet { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}

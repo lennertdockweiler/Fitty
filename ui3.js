@@ -156,8 +156,7 @@ registerPanel('today', {
     var go = h('button', { class: 'btn accent block', type: 'button', id: 'btn-suggest', onclick: function () { recalc(); scrollToEl(res); } }, 'Outfits vorschlagen');
     var again = h('button', { class: 'btn ghost block', type: 'button', id: 'btn-reroll', onclick: reroll }, ico('dice'), 'Nochmal würfeln');
 
-    p.append(
-      banner,
+    p.append(banner, h('div', { class: 'today-form' },
       sec('Anlass · Dresscode', h('div', null, tape, lvName, lvHint)),
       sec('Wetter', h('div', { class: 'stack' }, presets,
         h('div', { class: 'tempbox' }, tempOut, h('div', null, range, h('div', { class: 'range-scale mono', 'aria-hidden': 'true' }, h('span', null, '−10'), h('span', null, '14'), h('span', null, '38'))), feels),
@@ -166,8 +165,8 @@ registerPanel('today', {
         h('label', { class: 'field', for: 'today-activity' }, h('span', null, 'Aktivität'), actSel), factors)),
       sec('Stil', h('div', { class: 'stack' }, bold, basics)),
       sec('Das soll rein', h('div', { class: 'stack' }, mustBox, h('div', null, addMustBtn))),
-      h('div', { class: 'sec stack' }, go, again),
-      res
+      h('div', { class: 'sec stack' }, go, again)),
+      h('div', { class: 'today-res sec' }, res)
     );
     TU.forEach(function (f) { f(); });
     if (S.ready) recalc();

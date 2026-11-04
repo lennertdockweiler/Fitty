@@ -96,9 +96,13 @@ function renderSync() {
   el.title = S.mode === 'db' ? 'Dein Schrank wird in deinem Claude-Konto gespeichert.' : 'Dein Schrank wird nur im Speicher dieses Browsers abgelegt.';
 }
 
-/* Wird von Store aufgerufen, sobald Daten da sind oder sich geändert haben */
-function onData() {
+/* Wird von Store aufgerufen, sobald Daten da sind oder sich geändert haben.
+   Im Konto-Modus kommen Snapshots oft in Serien, dann wird einmal gesammelt neu gezeichnet. */
+var dataTimer = null;
+function onData(now) {
   renderSync();
+  clearTimeout(dataTimer);
+  if (!now && S.mode === 'db') { dataTimer = setTimeout(function () { onData(true); }, 40); return; }
   if (V.ctx && V.ctx.must) {
     V.ctx.must = V.ctx.must.filter(function (m) { return m.kind !== 'item' || m.item || itemById(m.id); });
   }
@@ -107,7 +111,7 @@ function onData() {
   if (P && P.built) { P.refresh($('p-' + V.tab)); V.dirty[V.tab] = false; }
 }
 /* nach eigenen Änderungen: im lokalen Modus ruft Store kein onData auf */
-function changed() { onData(); }
+function changed() { onData(true); }
 
 /* Hell / Dunkel: nur in der eigenständigen Fassung wählbar, im Artifact entscheidet claude.ai */
 function themePref() { try { return localStorage.getItem('ankleide.theme') || 'auto'; } catch (e) { return 'auto'; } }

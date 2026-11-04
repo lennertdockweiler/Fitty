@@ -401,6 +401,7 @@ function drawScan(p) {
     if (!V.scan.out || !scanReady()) return;
     var x = scanItem(), W = wardrobe().filter(function (y) { return y.id !== x.id && y.id !== V.scan.saved; });
     if (V.scan.out === 'shop') {
+      if (!W.length) { out.append(h('div', { class: 'card' }, 'Dein Schrank ist noch leer. Der Einkaufs-Check vergleicht das Teil mit deinen Teilen, lege also zuerst ein paar an.')); return; }
       var sc = AK.shopCheck(W, x, todayStr());
       var box = h('div', { class: 'card stack' }, h('div', { class: 'mono' }, 'Einkaufs-Check' + (isDemo() ? ' · mit dem Beispielschrank' : '')),
         h('div', { class: 'verdict t-' + sc.tier }, sc.verdict));

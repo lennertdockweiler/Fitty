@@ -240,7 +240,7 @@ function drawWeek(box) {
     checkbox('pl-rain', 'Regen möglich', function () { return o.rain; }, function (v) { o.rain = v; }),
     h('button', { class: 'btn accent block', type: 'button', id: 'pl-go', onclick: function () { o.res = planWeek(o); drawMore(); scrollToEl($('pl-res')); } }, ico('cal'), 'Woche planen'));
   box.append(sec('Wochenplaner', h('div', { class: 'stack' },
-    h('p', { class: 'muted small', style: 'margin:0' }, 'Outfits für mehrere Tage ohne Wiederholung: Oberteile ruhen zwei Tage, Hosen und Schuhe dürfen öfter vorkommen. Fortbewegung und Farbmut kommen aus „Heute“.'), form)));
+    h('p', { class: 'muted small', style: 'margin:0' }, 'Outfits für mehrere Tage ohne Wiederholung: Oberteile kommen frühestens nach zwei Tagen wieder dran, Hosen und Schuhe dürfen öfter vorkommen. Fortbewegung und Farbmut kommen aus „Heute“.'), form)));
   var res = h('div', { id: 'pl-res', class: 'sec stack' });
   box.append(res);
   if (!o.res) return;
